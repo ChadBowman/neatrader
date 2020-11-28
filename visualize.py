@@ -113,8 +113,8 @@ def plot_species(statistics, view=False, filename='speciation.svg'):
     plt.close()
 
 
-def draw_net(config, genome, view=False, filename=None, node_names=None, show_disabled=True, prune_unused=False,
-             node_colors=None, fmt='svg'):
+def draw_net(config, genome, view=False, filename=None, node_names=None,
+             show_disabled=True, prune_unused=False, node_colors=None, fmt='svg'):
     """ Receives a genome and draws a neural network with arbitrary topology. """
     # Attributes for network nodes.
     if graphviz is None:
@@ -195,3 +195,24 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
     dot.render(filename, view=view)
 
     return dot
+
+
+def plot_trades(trades, stock, view=False, filename='trades.svg'):
+    """ Visualizes trades from a single neural network. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    fig, ax = plt.subplots()
+    ax.stackplot(stock.iloc[:, 2])
+
+    plt.title("")
+    plt.ylabel("TSLA Price")
+    plt.xlabel("")
+
+    plt.savefig(filename)
+
+    if view:
+        plt.show()
+
+    plt.close()

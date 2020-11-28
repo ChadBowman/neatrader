@@ -9,7 +9,10 @@ with open("TSLA_ta.csv", "r") as file:
         close = float(row[2])
         macd = float(row[3])
         signal = float(row[4])
-        tsla.append({"close": close, "macd": macd, "signal": signal})
+        diff = float(row[5])
+        tsla.append({
+            "close": close, "macd": macd, "signal": signal, "diff": diff
+        })
 
 
 def simulate(net, initial_fitness):
@@ -19,9 +22,11 @@ def simulate(net, initial_fitness):
         close = day["close"]
         macd = day["macd"]
         signal = day["signal"]
+        diff = day["diff"]
 
-        buy, hold, sell = net.activate((holdings, macd, signal))
+        buy, hold, sell = net.activate((holdings, macd, signal, diff))
 
+        print(sell)
         if buy > hold and buy > sell:
             if holdings == 0:
                 cash -= close
@@ -59,14 +64,37 @@ def run(config_file):
     pop.add_reporter(neat.Checkpointer(5))
 
     # run for up to 500 generations
-    winner = pop.run(eval_genomes, 1000)
+    winner = pop.run(eval_genomes, 10000)
 
     # display the winning genome
     print(f"\nBest genome:\n{winner}")
 
+    win_net = neat.nn.FeedForwardNetwork.create(winner, config)
+    holdings = 1
+    cash = 0
+    for day in tsla:
+        close = day["close"]
+        macd = day["macd"]
+        signal = day["signal"]
+        diff = day["diff"]
+
+        buy, hold, sell = win_net.activate((holdings, macd, signal, diff))
+
+        if buy > hold and buy > sell:
+            if holdings == 0:
+                cash -= close
+                holdings += 1
+                print(f"bought at {close}, total: {cash + (holdings * close)}")
+        if sell > hold and sell > buy:
+            if holdings == 1:
+                cash += close
+                holdings -= 1
+                print(f"sold at {close}, total: {cash + (holdings * close)}")
+
     visualize.draw_net(config, winner, True)
     visualize.plot_stats(stats, ylog=False, view=True)
     visualize.plot_species(stats, view=True)
+
 
 if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)

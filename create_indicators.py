@@ -2,6 +2,7 @@ import pandas as pd
 from ta.utils import dropna
 import matplotlib.pyplot as plt
 from ta.trend import MACD
+import numpy as np
 
 df = pd.read_csv('TSLA.csv', sep=',')
 
@@ -10,11 +11,15 @@ df = dropna(df)
 
 macd = MACD(close=df["Close"])
 
-df["macd"] = macd.macd()
-df["macd_signal"] = macd.macd_signal()
-df["macd_diff"] = macd.macd_diff()
 
-#plt.plot(df.Close, label="price")
+def normalize(col):
+    return (col-col.mean())/col.std()
+
+df["macd"] = normalize(macd.macd())
+df["macd_signal"] = normalize(macd.macd_signal())
+df["macd_diff"] = normalize(macd.macd_diff())
+
+
 plt.plot(df.macd, label="MACD")
 plt.plot(df.macd_signal, label="MACD signal")
 plt.plot(df.macd_diff, label="MACD diff")
