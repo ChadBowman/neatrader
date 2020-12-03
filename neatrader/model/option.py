@@ -16,6 +16,10 @@ class Option:
     def __repr__(self):
         return str(self)
 
+    def csv_field(self):
+        date = self.expiration.strftime('%y%m%d')
+        return f"{date}{self.type[0]}{self.strike} {self.price} {self.delta} {self.theta}"
+
 
 class OptionChain:
     """ A collection of available options for a single security """
@@ -27,6 +31,10 @@ class OptionChain:
         }
         self.security = security
         self.date = date
+
+    def __str__(self):
+        date = self.date.strftime("%Y%m%d")
+        return f"{self.security.symbol}{date}"
 
     def add_option(self, option):
         """example:
@@ -66,7 +74,7 @@ class OptionChain:
         return self.chain['put']
 
     def otm(self, expiration):
-        """ finda all out of the money option contracts
+        """ finds all out of the money option contracts
             for a particular expiration date.
         """
         underlying = self.security.last_quote().close

@@ -25,3 +25,6 @@ class Quote:
     def __init__(self, close, date):
         self.close = close
         self.date = date
+
+    def __repr__(self):
+        return str(self.close)
