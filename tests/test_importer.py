@@ -1,7 +1,7 @@
 import unittest
 import test_utils
 from datetime import datetime
-from neatrader.preprocess import EtradeImporter
+from neatrader.preprocess import EtradeImporter, CsvImporter
 
 
 class TestImporter(unittest.TestCase):
@@ -20,3 +20,10 @@ class TestImporter(unittest.TestCase):
         assert o.theta is not None
         assert o.iv is not None
         assert o.price is not None
+
+    def test_csv_importer(self):
+        resource = test_utils.fetch_resource('chains_TSLA.csv')
+        importer = CsvImporter()
+        for chain in importer.chains(resource):
+            assert chain.security.symbol == 'TSLA'
+            assert chain.get_option('call', datetime(2020, 4, 24), 420) is not None

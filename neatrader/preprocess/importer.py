@@ -1,5 +1,6 @@
 import json
 import re
+import csv
 from datetime import datetime
 from neatrader.model import Security, Quote, Option, OptionChain
 
@@ -37,3 +38,34 @@ class EtradeImporter:
         option.iv = json['OptionGreeks']['iv']
         option.price = json['lastPrice']
         return option
+
+
+class CsvImporter:
+    def chains(self, file_name):
+        with open(file_name, 'r') as f:
+            symbol = re.match(r'chains_(\w+).csv', 'chains_TSLA.csv').group(1)
+            security = Security(symbol)
+            for row in csv.reader(f):
+                date = datetime.strptime(row[0], '%y%m%d')
+                quote = row[1]
+                security.add_quote(Quote(quote, date))
+                chain = self._parse_chain(date, security, row[2:])
+                yield chain
+
+    def _parse_chain(self, date, security, contracts):
+        chain = OptionChain(security, date)
+        for contract in contracts:
+            fields = contract.split(' ')
+            match = re.match(r'(\d+)(c|p)(\d+\.\d*)', fields[0])
+            expiration = datetime.strptime(match[1], '%y%m%d')
+            direction = 'call' if match[2] == 'c' else 'put'
+            strike = float(match[3])
+            price = float(fields[1])
+            delta = float(fields[2])
+            theta = float(fields[3])
+            option = Option(direction, security, strike, expiration)
+            option.price = price
+            option.delta = delta
+            option.theta = theta
+            chain.add_option(option)
+        return chain
