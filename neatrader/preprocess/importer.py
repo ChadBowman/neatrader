@@ -6,16 +6,23 @@ from neatrader.model import Security, Quote, Option, OptionChain
 
 
 class EtradeImporter:
+    def for_dates(self, location, symbol, date_range):
+        for date in date_range:
+            yield self.from_json(f"{location}/{date.date()}/{symbol}.json")
+
     def from_json(self, file_name):
-        with open(file_name, 'r') as f:
-            chain_json = json.load(f)
-            security = Security(chain_json['quote']['symbol'])
-            match = re.match(r"\d+:\d+:\d+ E.T (\d+-\d+-\d+)", chain_json['quote']['dateTime'])
-            date = datetime.strptime(match.group(1), '%m-%d-%Y')
-            quote = self._parse_quote(date, chain_json['quote'])
-            security.add_quote(quote)
-            del chain_json['quote']
-            return self._parse_option_chain(security, date, chain_json)
+        try:
+            with open(file_name, 'r') as f:
+                chain_json = json.load(f)
+                security = Security(chain_json['quote']['symbol'])
+                match = re.match(r"\d+:\d+:\d+ E.T (\d+-\d+-\d+)", chain_json['quote']['dateTime'])
+                date = datetime.strptime(match.group(1), '%m-%d-%Y')
+                quote = self._parse_quote(date, chain_json['quote'])
+                security.add_quote(quote)
+                del chain_json['quote']
+                return self._parse_option_chain(security, date, chain_json)
+        except FileNotFoundError:
+            return None
 
     def _parse_quote(self, date, json):
         return Quote(json['lastTrade'], date)
