@@ -4,7 +4,6 @@ from neatrader.preprocess import EtradeImporter, CsvExporter
 
 
 def standardize(symbol, start, end):
-    print(symbol + start + end)
     importer = EtradeImporter()
     exporter = CsvExporter('data/chains/')
     date_range = pd.date_range(start=start, end=end)
