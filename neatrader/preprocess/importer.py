@@ -6,18 +6,27 @@ from neatrader.model import Security, Quote, Option, OptionChain
 
 
 class EtradeImporter:
-    def for_dates(self, location, symbol, date_range):
-        for date in date_range:
-            yield self.from_json(f"{location}/{date.date()}/{symbol}.json")
+    def for_dates(self, directory, symbol, date_range):
+        """ Imports mutiple option chains and quotes for a single security.
 
-    def from_json(self, file_name):
+            directory: location of root directory
+            symbol: symbol of security
+            date_range: a pandas date_range
+        """
+        security = None
+        for date in date_range:
+            chain = self.from_json(f"{directory}/{date.date()}/{symbol}.json", security)
+            yield chain
+            security = chain.security if chain else None
+
+    def from_json(self, file_name, security=None):
         try:
             with open(file_name, 'r') as f:
                 chain_json = json.load(f)
-                security = Security(chain_json['quote']['symbol'])
-                match = re.match(r"\d+:\d+:\d+ E.T (\d+-\d+-\d+)", chain_json['quote']['dateTime'])
-                date = datetime.strptime(match.group(1), '%m-%d-%Y')
+                date = self._parse_date(chain_json)
                 quote = self._parse_quote(date, chain_json['quote'])
+                if not security:
+                    security = Security(chain_json['quote']['symbol'])
                 security.add_quote(quote)
                 del chain_json['quote']
                 return self._parse_option_chain(security, date, chain_json)
@@ -46,13 +55,19 @@ class EtradeImporter:
         option.price = json['lastPrice']
         return option
 
+    def _parse_date(self, chain_json):
+        match = re.match(r"\d+:\d+:\d+ E.T (\d+-\d+-\d+)", chain_json['quote']['dateTime'])
+        return datetime.strptime(match.group(1), '%m-%d-%Y')
+
 
 class CsvImporter:
     def chains(self, file_name):
         with open(file_name, 'r') as f:
-            symbol = re.match(r'chains_(\w+).csv', 'chains_TSLA.csv').group(1)
+            symbol = re.match(r'.*_(\w+).csv', file_name).group(1)
             security = Security(symbol)
-            for row in csv.reader(f):
+            reader = csv.reader(f)
+            next(reader)
+            for row in reader:
                 date = datetime.strptime(row[0], '%y%m%d')
                 quote = row[1]
                 security.add_quote(Quote(quote, date))
@@ -63,13 +78,12 @@ class CsvImporter:
         chain = OptionChain(security, date)
         for contract in contracts:
             fields = contract.split(' ')
-            match = re.match(r'(\d+)(c|p)(\d+\.\d*)', fields[0])
-            expiration = datetime.strptime(match[1], '%y%m%d')
-            direction = 'call' if match[2] == 'c' else 'put'
-            strike = float(match[3])
-            price = float(fields[1])
-            delta = float(fields[2])
-            theta = float(fields[3])
+            expiration = datetime.strptime(fields[0], '%y%m%d')
+            direction = 'call' if fields[1] == 'c' else 'put'
+            strike = float(fields[2])
+            price = float(fields[3])
+            delta = float(fields[4])
+            theta = float(fields[5])
             option = Option(direction, security, strike, expiration)
             option.price = price
             option.delta = delta

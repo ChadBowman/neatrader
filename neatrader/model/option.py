@@ -16,10 +16,6 @@ class Option:
     def __repr__(self):
         return str(self)
 
-    def csv_field(self):
-        date = self.expiration.strftime('%y%m%d')
-        return f"{date}{self.type[0]}{self.strike} {self.price} {self.delta} {self.theta}"
-
 
 class OptionChain:
     """ A collection of available options for a single security """
