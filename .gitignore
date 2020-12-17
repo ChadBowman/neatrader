@@ -131,3 +131,6 @@ dmypy.json
 # generated graphs
 *.svg
 *.gv
+
+# processed fies
+data/
