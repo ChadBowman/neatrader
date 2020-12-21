@@ -39,6 +39,6 @@ class TestImporter(unittest.TestCase):
     def test_csv_importer(self):
         resource = test_utils.fetch_resource('test_chains_TSLA.csv')
         importer = CsvImporter()
-        for chain in importer.chains(resource):
-            assert chain.security.symbol == 'TSLA'
-            assert chain.get_option('call', datetime(2020, 12, 18), 420) is not None
+        chain = next(importer.chains(resource))
+        assert chain.security.symbol == 'TSLA'
+        assert chain.get_option('call', datetime(2020, 9, 18), 420) is not None
