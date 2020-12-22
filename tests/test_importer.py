@@ -1,5 +1,5 @@
 import unittest
-import test_utils
+import utils
 import pandas as pd
 from datetime import datetime
 from neatrader.preprocess import EtradeImporter, CsvImporter
@@ -7,7 +7,7 @@ from neatrader.preprocess import EtradeImporter, CsvImporter
 
 class TestImporter(unittest.TestCase):
     def test_chain_importer(self):
-        resource = test_utils.fetch_resource('2020-09-09/TSLA.json')
+        resource = utils.fetch_resource('2020-09-09/TSLA.json')
         importer = EtradeImporter()
         chain = importer.from_json(resource)
 
@@ -25,19 +25,19 @@ class TestImporter(unittest.TestCase):
     def test_for_dates(self):
         importer = EtradeImporter()
         daterange = pd.date_range(start='2020-09-09', end='2020-09-10')
-        root = test_utils.fetch_resource()
+        root = utils.fetch_resource()
         chains = list(importer.for_dates(root, 'TSLA', daterange))
         assert 2 == len(chains)
 
     def test_for_dates_with_missing_file(self):
         importer = EtradeImporter()
         daterange = pd.date_range(start='2020-09-09', end='2020-12-04')
-        root = test_utils.fetch_resource()
+        root = utils.fetch_resource()
         chains = [i for i in importer.for_dates(root, 'TSLA', daterange) if i]
         assert 2 == len(chains)
 
     def test_csv_importer(self):
-        resource = test_utils.fetch_resource('test_chains_TSLA.csv')
+        resource = utils.fetch_resource('test_chains_TSLA.csv')
         importer = CsvImporter()
         chain = next(importer.chains(resource))
         assert chain.security.symbol == 'TSLA'

@@ -1,6 +1,6 @@
 import unittest
 import csv
-import test_utils
+import utils
 import os
 from neatrader.preprocess import EtradeImporter, CsvExporter
 
@@ -10,7 +10,7 @@ class TestCsvExporter(unittest.TestCase):
         try:
             importer = EtradeImporter()
             exporter = CsvExporter('tests')
-            tsla = test_utils.fetch_resource('2020-09-09/TSLA.json')
+            tsla = utils.fetch_resource('2020-09-09/TSLA.json')
             chain = importer.from_json(tsla)
             file_name = exporter.to_csv(chain)
 
@@ -20,7 +20,7 @@ class TestCsvExporter(unittest.TestCase):
                 assert '200909' == rows[1][0]
                 assert '366.28' == rows[1][1]
 
-            tsla = test_utils.fetch_resource('2020-09-10/TSLA.json')
+            tsla = utils.fetch_resource('2020-09-10/TSLA.json')
             chain = importer.from_json(tsla)
             file_name = exporter.to_csv(chain)
 
