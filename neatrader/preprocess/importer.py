@@ -1,9 +1,6 @@
 import json
 import re
-import csv
-import os
 import pandas as pd
-from pathlib import Path
 from datetime import datetime
 from neatrader.utils import from_small_date
 from neatrader.model import Security, Quote, Option, OptionChain
@@ -48,10 +45,10 @@ class EtradeImporter:
         return chain
 
     def _parse_option(self, security, exp_dt, json):
-        type = json['optionType'].lower()
+        direction = json['optionType'].lower()
         strike = json['strikePrice']
         expiration = datetime.strptime(exp_dt, '%Y-%m-%d')
-        option = Option(type, security, strike, expiration)
+        option = Option(direction, security, strike, expiration)
         option.delta = json['OptionGreeks']['delta']
         option.theta = json['OptionGreeks']['theta']
         option.vega = json['OptionGreeks']['vega']
