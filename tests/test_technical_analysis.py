@@ -1,13 +1,22 @@
 import unittest
-import utils
+import os
+import pandas as pd
+from pathlib import Path
 from neatrader.preprocess import TechnicalAnalysis
 
 
 class TestTechnicalAnalysis(unittest.TestCase):
     def test_generate(self):
-        chains = utils.fetch_resource('test_chains_TSLA.csv')
-        ta = TechnicalAnalysis(chains)
+        ta = TechnicalAnalysis(Path('tests/test_data/TSLA'))
         df = ta.generate()
-        assert 10 < len(df['macd'])
-        assert 10 < len(df['bb_bbm'])
-        assert 10 < len(df['rsi'])
+        self.assertAlmostEqual(df['macd'][30], 84.402, places=3)
+
+    def test_to_csv(self):
+        ta = TechnicalAnalysis(Path('tests/test_data/TSLA'))
+        try:
+            path = ta.to_csv(Path('tests/ta.csv'))
+            df = pd.read_csv(path)
+            self.assertEqual(len(df), 159)
+            self.assertAlmostEqual(df['macd'][30], 84.402, places=3)
+        finally:
+            os.remove('tests/ta.csv')

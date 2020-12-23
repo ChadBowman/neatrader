@@ -1,7 +1,11 @@
 import json
 import re
 import csv
+import os
+import pandas as pd
+from pathlib import Path
 from datetime import datetime
+from neatrader.utils import from_small_date
 from neatrader.model import Security, Quote, Option, OptionChain
 
 
@@ -61,32 +65,32 @@ class EtradeImporter:
 
 
 class CsvImporter:
-    def chains(self, file_name):
-        with open(file_name, 'r') as f:
-            symbol = re.match(r'.*_(\w+).csv', file_name).group(1)
-            security = Security(symbol)
-            reader = csv.reader(f)
-            next(reader)
-            for row in reader:
-                date = datetime.strptime(row[0], '%y%m%d')
-                quote = row[1]
-                security.add_quote(Quote(quote, date))
-                chain = self._parse_chain(date, security, row[2:])
-                yield chain
+    def chains(self, path):
+        """ imports chain data from a pathlib.Path """
+        symbol = path.name
+        security = Security(symbol)
+        self._parse_quotes(security, path / 'close.csv')
+        for f in path.glob('chains/*.csv'):
+            date = from_small_date(f.name.replace('.csv', ''))
+            yield self._parse_chain(date, security, f)
 
-    def _parse_chain(self, date, security, contracts):
+    def _parse_quotes(self, security, path):
+        df = pd.read_csv(path, parse_dates=['date'], date_parser=from_small_date)
+        for index, quote in df.iterrows():
+            quote = Quote(quote['close'], quote['date'])
+            security.add_quote(quote)
+
+    def _parse_chain(self, date, security, path):
         chain = OptionChain(security, date)
-        for contract in contracts:
-            fields = contract.split(' ')
-            expiration = datetime.strptime(fields[0], '%y%m%d')
-            direction = 'call' if fields[1] == 'c' else 'put'
-            strike = float(fields[2])
-            price = float(fields[3])
-            delta = float(fields[4])
-            theta = float(fields[5])
+        df = pd.read_csv(path, parse_dates=['expiration'], date_parser=from_small_date)
+        for index, contract in df.iterrows():
+            expiration = contract['expiration']
+            direction = contract['direction']
+            strike = contract['strike']
             option = Option(direction, security, strike, expiration)
-            option.price = price
-            option.delta = delta
-            option.theta = theta
+            option.price = contract['price']
+            option.delta = contract['delta']
+            option.theta = contract['theta']
+            option.vega = contract['vega']
             chain.add_option(option)
         return chain
