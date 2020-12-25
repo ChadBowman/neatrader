@@ -1,6 +1,7 @@
 import unittest
 import utils
 import pandas as pd
+import math
 from pathlib import Path
 from datetime import datetime
 from neatrader.preprocess import EtradeImporter, CsvImporter
@@ -22,19 +23,23 @@ class TestImporter(unittest.TestCase):
         self.assertIsNotNone(o.iv)
         self.assertIsNotNone(o.price)
 
-    def test_for_dates(self):
-        importer = EtradeImporter()
+    def test_etrade_for_dates(self):
+        importer = EtradeImporter(utils.test_path('test_data/etrade'))
         daterange = pd.date_range(start='2020-09-09', end='2020-09-10')
-        root = utils.fetch_resource()
-        chains = list(importer.for_dates(root, 'TSLA', daterange))
+        chains = list(importer.for_dates('TSLA', daterange))
         self.assertEqual(2, len(chains))
 
-    def test_for_dates_with_missing_file(self):
-        importer = EtradeImporter()
+    def test_etrade_for_dates_with_missing_file(self):
+        importer = EtradeImporter(utils.test_path('test_data/etrade'))
         daterange = pd.date_range(start='2020-09-09', end='2020-12-04')
-        root = utils.fetch_resource('test_data/etrade')
-        chains = [i for i in importer.for_dates(root, 'TSLA', daterange) if i]
+        chains = [i for i in importer.for_dates('TSLA', daterange) if i]
         self.assertEqual(2, len(chains))
+
+    def test_etrade_for_bogus_data(self):
+        importer = EtradeImporter()
+        resource = utils.test_path('test_data/etrade/2020-09-09/TSLA.json')
+        chain = importer.from_json(resource)
+        self.assertTrue(math.isnan(chain.get_option('put', datetime(2020, 9, 11), 20).theta))
 
     def test_csv_importer(self):
         importer = CsvImporter()

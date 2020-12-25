@@ -1,13 +1,17 @@
 import json
 import re
 import pandas as pd
+import numpy as np
 from datetime import datetime
 from neatrader.utils import from_small_date
 from neatrader.model import Security, Quote, Option, OptionChain
 
 
 class EtradeImporter:
-    def for_dates(self, directory, symbol, date_range):
+    def __init__(self, path=None):
+        self.path = path
+
+    def for_dates(self, symbol, date_range):
         """ Imports mutiple option chains and quotes for a single security.
 
             directory: location of root directory
@@ -16,7 +20,8 @@ class EtradeImporter:
         """
         security = None
         for date in date_range:
-            chain = self.from_json(f"{directory}/{date.date()}/{symbol}.json", security)
+            path = self.path / str(date.date()) / f"{symbol}.json"
+            chain = self.from_json(path, security)
             yield chain
             security = chain.security if chain else None
 
@@ -49,16 +54,19 @@ class EtradeImporter:
         strike = json['strikePrice']
         expiration = datetime.strptime(exp_dt, '%Y-%m-%d')
         option = Option(direction, security, strike, expiration)
-        option.delta = json['OptionGreeks']['delta']
-        option.theta = json['OptionGreeks']['theta']
-        option.vega = json['OptionGreeks']['vega']
-        option.iv = json['OptionGreeks']['iv']
-        option.price = json['lastPrice']
+        option.delta = self._scrub_value(json['OptionGreeks']['delta'])
+        option.theta = self._scrub_value(json['OptionGreeks']['theta'])
+        option.vega = self._scrub_value(json['OptionGreeks']['vega'])
+        option.iv = self._scrub_value(json['OptionGreeks']['iv'])
+        option.price = self._scrub_value(json['lastPrice'])
         return option
 
     def _parse_date(self, chain_json):
         match = re.match(r"\d+:\d+:\d+ E.T (\d+-\d+-\d+)", chain_json['quote']['dateTime'])
         return datetime.strptime(match.group(1), '%m-%d-%Y')
+
+    def _scrub_value(self, value):
+        return np.nan if value == -9999999.0 else value
 
 
 class CsvImporter:
