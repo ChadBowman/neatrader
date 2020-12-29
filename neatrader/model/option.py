@@ -18,6 +18,16 @@ class Option:
     def __repr__(self):
         return str(self)
 
+    def expires(self, datetime):
+        return self.expiration.date() == datetime.date()
+
+    def itm(self, price):
+        if self.direction == 'call' and price > self.strike:
+            return True
+        if self.direction == 'put' and price < self.strike:
+            return True
+        return False
+
 
 class OptionChain:
     """ A collection of available options for a single security """

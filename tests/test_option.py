@@ -59,3 +59,17 @@ class TestOptionChain(unittest.TestCase):
         expected = (5 * 2 + 2 * 4 + 0.5 * 10) / (2 + 4 + 10)
         result = chain.iv(datetime(2020, 4, 20))
         self.assertEqual(expected, result)
+
+        def test_option_expires(self):
+            security = Security('TSLA')
+            call = Option('call', security, 420, datetime(2020, 12, 4))
+            self.assertTrue(call.expires(datetime(2020, 12, 4)))
+
+        def test_option_itm(self):
+            security = Security('TSLA')
+            call = Option('call', security, 420, datetime(2020, 12, 4))
+            put = Option('put', security, 420, datetime(2020, 12, 4))
+            self.assertTrue(call.itm(500))
+            self.assertFalse(call.itm(400))
+            self.assertTrue(put.itm(400))
+            self.assertFalse(put.itm(500))

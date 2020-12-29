@@ -1,5 +1,8 @@
 import os
 from pathlib import Path
+from neatrader.model import Security
+
+TSLA = Security('TSLA')
 
 
 def fetch_resource(resource_name=None):
