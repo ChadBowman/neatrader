@@ -2,6 +2,7 @@ import json
 import re
 import pandas as pd
 import numpy as np
+from pathlib import Path
 from datetime import datetime
 from neatrader.utils import from_small_date
 from neatrader.model import Security, Quote, Option, OptionChain
@@ -29,7 +30,7 @@ class EtradeImporter:
         try:
             with open(file_name, 'r') as f:
                 chain_json = json.load(f)
-                date = self._parse_date(chain_json)
+                date = self._parse_date(file_name)
                 quote = self._parse_quote(date, chain_json['quote'])
                 if not security:
                     security = Security(chain_json['quote']['symbol'])
@@ -61,9 +62,10 @@ class EtradeImporter:
         option.price = self._scrub_value(json['lastPrice'])
         return option
 
-    def _parse_date(self, chain_json):
-        match = re.match(r"\d+:\d+:\d+ E.T (\d+-\d+-\d+)", chain_json['quote']['dateTime'])
-        return datetime.strptime(match.group(1), '%m-%d-%Y')
+    def _parse_date(self, file_name):
+        p = Path(file_name)
+        match = re.match(r".*/(\d+-\d+-\d+)", str(p.parent))
+        return datetime.strptime(match.group(1), '%Y-%m-%d')
 
     def _scrub_value(self, value):
         return np.nan if value == -9999999.0 else value
@@ -77,7 +79,7 @@ class CsvImporter:
         self._parse_quotes(security, path / 'close.csv')
         for f in path.glob('chains/*.csv'):
             date = from_small_date(f.name.replace('.csv', ''))
-            yield self._parse_chain(date, security, f)
+            yield self.parse_chain(date, security, f)
 
     def _parse_quotes(self, security, path):
         df = pd.read_csv(path, parse_dates=['date'], date_parser=from_small_date)
@@ -85,7 +87,7 @@ class CsvImporter:
             quote = Quote(quote['close'], quote['date'])
             security.add_quote(quote)
 
-    def _parse_chain(self, date, security, path):
+    def parse_chain(self, date, security, path):
         chain = OptionChain(security, date)
         df = pd.read_csv(path, parse_dates=['expiration'], date_parser=from_small_date)
         for index, contract in df.iterrows():
