@@ -16,9 +16,11 @@ class TradingEngine:
                         if contract.itm(price):
                             self.assign(portfolio, contract, amt)
                         else:
-                            self.expire(portfolio, contract)
+                            self.expire(portfolio, contract, amt)
 
-    def expire(self, portfolio, contract):
+    def expire(self, portfolio, contract, amt):
+        if amt < 0:
+            portfolio.collateral[contract.security] += amt * 100
         del portfolio.securities[contract]
 
     def assign(self, portfolio, contract, amt=1):

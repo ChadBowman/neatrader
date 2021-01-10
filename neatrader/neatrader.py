@@ -1,49 +1,84 @@
 import os
 import neat
-import csv
-import visualize
-
-tsla = []
-with open("TSLA_ta.csv", "r") as file:
-    for row in csv.reader(file):
-        close = float(row[2])
-        macd = float(row[3])
-        signal = float(row[4])
-        diff = float(row[5])
-        tsla.append({
-            "close": close, "macd": macd, "signal": signal, "diff": diff
-        })
+import pandas as pd
+import numpy as np
+from neatrader.model import Portfolio, Security
+from neatrader.trading import TradingEngine
+from neatrader.preprocess import CsvImporter
+from datetime import datetime
 
 
-def simulate(net, initial_fitness):
-    holdings = 1
-    cash = 0
-    for day in tsla:
-        close = day["close"]
-        macd = day["macd"]
-        signal = day["signal"]
-        diff = day["diff"]
+def simulate(net):
+    tsla = Security('TSLA')
+    # start with 100 shares
+    port = Portfolio(cash=0, securities={tsla: 100})
+    engine = TradingEngine([port])
+    df = pd.read_csv('normalized/TSLA/ta.csv', parse_dates=['date'])
+    port = engine.portfolios[0]
 
-        buy, hold, sell = net.activate((holdings, macd, signal, diff))
+    for idx, row in df.iterrows():
+        date = row['date'].strftime('%y%m%d')
+        close = row['close']
+        macd = row['macd']
+        macd_signal = row['macd_signal']
+        macd_diff = row['macd_diff']
+        bb_bbm = row['bb_bbm']
+        bb_bbh = row['bb_bbh']
+        bb_bbl = row['bb_bbl']
+        rsi = row['rsi']
 
-        print(sell)
-        if buy > hold and buy > sell:
-            if holdings == 0:
-                cash -= close
-                holdings += 1
-        if sell > hold and sell > buy:
-            if holdings == 1:
-                cash += close
-                holdings -= 1
+        # TODO add held option delta/theta, maybe price?, maybe vega?
+        params = (close, macd, macd_signal, macd_diff, bb_bbm, bb_bbh, bb_bbl, rsi)
 
-    value = cash + (holdings * close)
-    return value - initial_fitness
+        # BUY SELL HOLD
+        if not np.isnan(params).any():
+            chain = CsvImporter().parse_chain(row['date'], tsla, f"normalized/TSLA/chains/{date}.csv")
+            buy, sell, hold, delta, theta = net.activate(params)
+            #print(f"activation, buy: {buy}, sell: {sell}, hold: {hold}, delta: {delta}, theta: {theta}")
+            if hold > buy and hold > sell:
+                continue
+            elif buy > sell and buy > hold:
+                # only covered calls are supported right now so this means close the position
+                if port.contracts():
+                    contract = next(iter(port.contracts().keys()))
+                    new_price = chain.get_price(contract)
+                    try:
+                        print(f"closing {contract}")
+                        engine.buy_contract(port, contract, new_price)
+                    except Exception as e:
+                        print(e)
+            else:
+                if not port.contracts():
+                    # sell a new contract
+                    contract = chain.search(delta=delta, theta=theta)
+                    try:
+                        print(f"selling {contract}")
+                        engine.sell_contract(port, contract, contract.price)
+                    except Exception as e:
+                        print(e)
+
+        # process assignments, expirations
+        engine.eval({tsla: close}, datetime.strptime(date, '%y%m%d'))
+
+    option_cv = 0
+    if port.contracts():
+        option_cv = next(iter(port.contracts().keys())).price
+    stock_cv = 0
+    if port.stocks():
+        stock_cv = close * 100
+    cv = port.cash + option_cv + stock_cv
+    scales = pd.read_csv('normalized/TSLA/scales.csv', index_col=0)
+    mn = scales.loc['close', 'min']
+    mx = scales.loc['close', 'max']
+    de_norm = (cv * (mx - mn)) + mn
+    print(f"FIT: {de_norm}")
+    return de_norm
 
 
 def eval_genomes(genomes, config):
     for genome_id, genome in genomes:
         net = neat.nn.FeedForwardNetwork.create(genome, config)
-        genome.fitness = simulate(net, 555.38)
+        genome.fitness = simulate(net)
 
 
 def run(config_file):
@@ -55,45 +90,21 @@ def run(config_file):
         config_file
     )
 
-    # crete population, which is the top-level object for a NEAT run
+    # create population, which is the top-level object for a NEAT run
     pop = neat.Population(config)
+    stats = neat.StatisticsReporter()
+
     # add a stdout reporter to show progress in terminal
     pop.add_reporter(neat.StdOutReporter(True))
-    stats = neat.StatisticsReporter()
+    pop.add_reporter(neat.Checkpointer(500, 60 * 60, 'neatrader-checkpoint-'))
     pop.add_reporter(stats)
-    pop.add_reporter(neat.Checkpointer(5))
 
-    # run for up to 500 generations
     winner = pop.run(eval_genomes, 10000)
 
     # display the winning genome
     print(f"\nBest genome:\n{winner}")
 
     win_net = neat.nn.FeedForwardNetwork.create(winner, config)
-    holdings = 1
-    cash = 0
-    for day in tsla:
-        close = day["close"]
-        macd = day["macd"]
-        signal = day["signal"]
-        diff = day["diff"]
-
-        buy, hold, sell = win_net.activate((holdings, macd, signal, diff))
-
-        if buy > hold and buy > sell:
-            if holdings == 0:
-                cash -= close
-                holdings += 1
-                print(f"bought at {close}, total: {cash + (holdings * close)}")
-        if sell > hold and sell > buy:
-            if holdings == 1:
-                cash += close
-                holdings -= 1
-                print(f"sold at {close}, total: {cash + (holdings * close)}")
-
-    visualize.draw_net(config, winner, True)
-    visualize.plot_stats(stats, ylog=False, view=True)
-    visualize.plot_species(stats, view=True)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 import unittest
 from neatrader.model import Option, Security, OptionChain, Quote
 from datetime import datetime
+from utils import TSLA
 
 
 class TestOptionChain(unittest.TestCase):
@@ -60,16 +61,24 @@ class TestOptionChain(unittest.TestCase):
         result = chain.iv(datetime(2020, 4, 20))
         self.assertEqual(expected, result)
 
-        def test_option_expires(self):
-            security = Security('TSLA')
-            call = Option('call', security, 420, datetime(2020, 12, 4))
-            self.assertTrue(call.expires(datetime(2020, 12, 4)))
+    def test_option_expires(self):
+        security = Security('TSLA')
+        call = Option('call', security, 420, datetime(2020, 12, 4))
+        self.assertTrue(call.expires(datetime(2020, 12, 4)))
 
-        def test_option_itm(self):
-            security = Security('TSLA')
-            call = Option('call', security, 420, datetime(2020, 12, 4))
-            put = Option('put', security, 420, datetime(2020, 12, 4))
-            self.assertTrue(call.itm(500))
-            self.assertFalse(call.itm(400))
-            self.assertTrue(put.itm(400))
-            self.assertFalse(put.itm(500))
+    def test_option_itm(self):
+        security = Security('TSLA')
+        call = Option('call', security, 420, datetime(2020, 12, 4))
+        put = Option('put', security, 420, datetime(2020, 12, 4))
+        self.assertTrue(call.itm(500))
+        self.assertFalse(call.itm(400))
+        self.assertTrue(put.itm(400))
+        self.assertFalse(put.itm(500))
+
+    def test_get_price(self):
+        call = Option('call', TSLA, 420, datetime(2020, 12, 4))
+        call.price = 420
+        chain = OptionChain(TSLA, datetime.now())
+        chain.add_option(call)
+
+        self.assertEqual(420, chain.get_price(call))

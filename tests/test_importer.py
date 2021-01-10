@@ -46,4 +46,4 @@ class TestImporter(unittest.TestCase):
         chain = next(importer.chains(Path('tests/test_data/TSLA')))
         self.assertEqual(chain.security.symbol, 'TSLA')
         self.assertIsNotNone(chain.get_option('call', datetime(2020, 9, 18), 420))
-        self.assertEqual(datetime(2020, 1, 1), chain.security.last_quote().date)
+        self.assertEqual(datetime(2020, 8, 24), chain.security.last_quote().date)

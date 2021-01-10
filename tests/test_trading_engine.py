@@ -120,9 +120,11 @@ class TestTradingEngine(unittest.TestCase):
 
     def test_option_expiration(self):
         call = Option('call', TSLA, 500, datetime(2020, 12, 28))
-        port = Portfolio(0, {TSLA: 100, call: 1})
+        port = Portfolio(0, {TSLA: 100})
         te = TradingEngine([port])
 
-        te.eval({TSLA: 40}, datetime(2020, 12, 28))
+        te.sell_contract(port, call, 10)
+        te.eval({TSLA: 400}, datetime(2020, 12, 28))
 
         self.assertFalse(port.contracts())
+        self.assertEqual(0, port.collateral[TSLA])

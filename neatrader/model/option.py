@@ -1,6 +1,7 @@
 import pandas as pd
 from itertools import chain
 from neatrader.utils import flatten_dict, add_value, small_date
+from pandas import Timestamp
 
 
 class Option:
@@ -9,6 +10,9 @@ class Option:
         self.direction = direction
         self.security = security
         self.strike = strike
+        # TODO probably not the best way to deal with tis
+        if isinstance(expiration, Timestamp):
+            expiration = expiration.to_pydatetime()
         self.expiration = expiration
 
     def __str__(self):
@@ -74,6 +78,9 @@ class OptionChain:
                     best = option
                     error = new_error
         return best
+
+    def get_price(self, contract):
+        return self.get_option(contract.direction, contract.expiration, contract.strike).price
 
     def calls(self):
         return self.chain['call']

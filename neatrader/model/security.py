@@ -3,7 +3,8 @@ class Security:
     """ A stock market security. Usually a stock or ETF. """
     def __init__(self, symbol):
         self.symbol = symbol
-        self.quotes = {}
+        self.quotes = {}  # TODO this has caused a lot of issues and
+        # im not sure it should even be apart of Security
 
     def __str__(self):
         return self.symbol
@@ -12,12 +13,10 @@ class Security:
         return str(self)
 
     def add_quote(self, quote):
-        self.quotes[quote.date] = quote
+        self.quotes = {quote.date: quote}
 
     def last_quote(self):
-        if not self.quotes:
-            return None
-        return self.quotes[sorted(self.quotes)[0]]
+        return next(iter(self.quotes.values()))  # TODO change this
 
 
 class Quote:
