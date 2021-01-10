@@ -12,8 +12,14 @@ class TradingEngine:
             for contract, amt in portfolio.contracts().items():
                 # here security means option underlying security
                 for security, price in prices.items():
-                    if contract.security == security and contract.expires(date) and contract.itm(price):
-                        self.assign(portfolio, contract, amt)
+                    if contract.security == security and contract.expires(date):
+                        if contract.itm(price):
+                            self.assign(portfolio, contract, amt)
+                        else:
+                            self.expire(portfolio, contract)
+
+    def expire(self, portfolio, contract):
+        del portfolio.securities[contract]
 
     def assign(self, portfolio, contract, amt=1):
         if contract.direction == 'call':
