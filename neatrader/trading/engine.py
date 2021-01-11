@@ -14,8 +14,14 @@ class TradingEngine:
                 for security, price in prices.items():
                     if contract.security == security and contract.expires(date):
                         if contract.itm(price):
-                            self.assign(portfolio, contract, amt)
+                            if amt < 0:
+                                print('assign')
+                                self.assign(portfolio, contract, amt)
+                            elif amt > 0:
+                                print('exercise')
+                                self.exercise(portfolio, contract, amt)
                         else:
+                            print('expire')
                             self.expire(portfolio, contract, amt)
 
     def expire(self, portfolio, contract, amt):
@@ -23,25 +29,52 @@ class TradingEngine:
             portfolio.collateral[contract.security] += amt * 100
         del portfolio.securities[contract]
 
-    def assign(self, portfolio, contract, amt=1):
+    def assign(self, portfolio, contract, amt):
+        """assign short option contract"""
         if contract.direction == 'call':
             shares = portfolio.securities.get(contract.security, 0)
-            if shares < 100 * amt:
+            if shares < 100 * abs(amt):
                 raise Exception(f"not enough shares to assign call. shares: {shares}, call: {contract}, amt: {amt}")
             # call away shares
-            portfolio.securities[contract.security] = shares - (100 * amt)
+            portfolio.securities[contract.security] = shares + (100 * amt)
             # update cash
-            portfolio.cash += contract.strike * 100 * amt
+            portfolio.cash += contract.strike * 100 * abs(amt)
 
         if contract.direction == 'put':
             cash = portfolio.cash
-            if cash < contract.strike * 100 * amt:
+            if cash < contract.strike * 100 * abs(amt):
                 raise Exception(f"not enough cash to to assign put. cash: {cash}, put: {contract}, amt: {amt}")
             # update cash
-            portfolio.cash = cash - contract.strike * 100 * amt
+            portfolio.cash = cash - contract.strike * 100 * abs(amt)
             # put shares
             securities = portfolio.securities.get(contract.security, 0)
-            portfolio.securities[contract.security] = securities + (100 * amt)
+            portfolio.securities[contract.security] = securities + (100 * abs(amt))
+
+        # reduce contracts
+        portfolio.securities[contract] -= amt
+
+    def exercise(self, portfolio, contract, amt):
+        cash = portfolio.cash
+        shares = portfolio.securities.get(contract.security, 0)
+
+        if contract.direction == 'call':
+            if cash < contract.strike * 100 * amt:
+                raise Exception(f"not enough cash to exercise call. cash: {cash}, call: {contract}, amt: {amt}")
+            # reduce cash
+            portfolio.cash -= contract.strike * 100 * amt
+            # add shares
+            portfolio.securities[contract.security] = shares + (100 * amt)
+
+        if contract.direction == 'put':
+            if shares < 100 * amt:
+                raise Exception(f"not enough shares to exercise put. shares: {shares}, put: {contract}, amt: {amt}")
+            # reduce shares
+            portfolio.securities[contract.security] -= 100 * amt
+            # add cash
+            portfolio.cash += contract.strike * 100 * amt
+
+        # reduce contracts
+        portfolio.securities[contract] -= amt
 
     def buy_contract(self, portfolio, contract, price, amt=1):
         if portfolio.cash < price * 100:

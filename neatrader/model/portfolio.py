@@ -7,6 +7,9 @@ class Portfolio:
         self.securities = securities
         self.collateral = {}
 
+    def __str__(self):
+        return f"cash: {self.cash}\nsecurities: {self.securities}\ncollateral: {self.collateral}"
+
     def contracts(self):
         return {contract: amt for contract, amt in self.securities.items() if isinstance(contract, Option)}
 
