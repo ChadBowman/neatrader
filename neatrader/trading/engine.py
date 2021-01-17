@@ -15,7 +15,7 @@ class TradingEngine:
                     if contract.security == security and contract.expires(date):
                         if contract.itm(price):
                             if amt < 0:
-                                print('assign')
+                                print(f"assign: {contract}")
                                 self.assign(portfolio, contract, amt)
                             elif amt > 0:
                                 print('exercise')
@@ -52,6 +52,8 @@ class TradingEngine:
 
         # reduce contracts
         portfolio.securities[contract] -= amt
+        # reduce collateral
+        self._reduce_collateral(portfolio, contract, amt)
 
     def exercise(self, portfolio, contract, amt):
         cash = portfolio.cash
@@ -79,14 +81,8 @@ class TradingEngine:
     def buy_contract(self, portfolio, contract, price, amt=1):
         if portfolio.cash < price * 100:
             raise Exception(f"not enough cash to buy {contract} for ${price}. cash: {portfolio.cash}")
-        # release collateral if needed
-        collateral = portfolio.collateral.get(contract.security, 0)
-        adjusted_coll = collateral - (100 * amt)
-        if adjusted_coll >= 0:
-            portfolio.collateral[contract.security] = adjusted_coll
-        else:
-            portfolio.collateral[contract.security] = 0
 
+        self._reduce_collateral(portfolio, contract, amt)
         portfolio.cash -= price * 100 * amt
         portfolio.securities[contract] = portfolio.securities.get(contract, 0) + amt
 
@@ -112,3 +108,12 @@ class TradingEngine:
 
         # update cash
         portfolio.cash += price * 100 * amt
+
+    def _reduce_collateral(self, portfolio, contract, amt):
+        # release collateral if needed
+        collateral = portfolio.collateral.get(contract.security, 0)
+        adjusted_coll = collateral - (100 * abs(amt))
+        if adjusted_coll >= 0:
+            portfolio.collateral[contract.security] = adjusted_coll
+        else:
+            portfolio.collateral[contract.security] = 0

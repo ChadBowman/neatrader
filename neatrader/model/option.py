@@ -1,4 +1,6 @@
 import pandas as pd
+import math
+import datetime as datetime
 from itertools import chain
 from neatrader.utils import flatten_dict, add_value, small_date
 from pandas import Timestamp
@@ -21,6 +23,22 @@ class Option:
 
     def __repr__(self):
         return str(self)
+
+    def __eq__(self, other):
+        if isinstance(other, Option):
+            return all((
+                self.direction == other.direction,
+                self.security == other.security,
+                self.strike == other.strike,
+                self.expiration == other.expiration
+                # TODO might need to include price here too
+            ))
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash((self.direction, self.security, self.strike, self.expiration))
 
     def expires(self, datetime):
         return self.expiration.date() == datetime.date()
@@ -63,20 +81,29 @@ class OptionChain:
     def get_option(self, direction, expiration, strike):
         return self.chain[direction][expiration][strike]
 
-    def search(self, *, theta, delta):
-        """ finds an option that has the closest theta and delta.
-            The closest option is the one with the smallest sum of the squared difference
-            of both theta and delta.
+    def search(self, close, *, theta, delta):
+        """ First finds the expiration with the closest theta by
+            grouping the expirations by the price-weighted theta of out of the money options,
+            excluding options that expire within five days.
+            Then, find the contract with the closest delta.
         """
-        direction = 'call' if delta > 0 else 'put'
-        error = 100
+        direction = 'put' if delta < 0 else 'call'
+        exp = None
+        best_theta_error = 1000
+        for expiration, agg_theta in self._expirations_by_price_weighted_theta(direction, close).items():
+            theta_error = abs(agg_theta - theta)
+            if theta_error < best_theta_error:
+                exp = expiration
+                best_theta_error = theta_error
+
+        contracts = self.chain[direction][exp]
         best = None
-        for strikes in self.chain[direction].values():
-            for option in strikes.values():
-                new_error = (theta - option.theta) ** 2 + (delta - option.delta) ** 2
-                if new_error < error:
-                    best = option
-                    error = new_error
+        best_delta_error = 2
+        for strike, contract in contracts.items():
+            delta_error = abs(contract.delta - delta)
+            if delta_error < best_delta_error:
+                best = contract
+                best_delta_error = delta_error
         return best
 
     def get_price(self, contract):
@@ -130,3 +157,20 @@ class OptionChain:
             add_value(contracts, 'theta', contract.theta)
             add_value(contracts, 'vega', contract.vega)
         return pd.DataFrame(contracts)
+
+    def _expirations_by_price_weighted_theta(self, direction, close):
+        if close < 1:
+            raise Exception(f"denormalized closing price expected. was {close}")
+        contracts = self.calls() if direction == 'call' else self.puts()
+        result = {}
+        five_days_future = self.date + datetime.timedelta(days=5)
+        for expiration, strike_list in contracts.items():
+            if expiration > five_days_future:
+                weighted_theta_agg = 0
+                price_total = 0
+                for strike, contract in strike_list.items():
+                    if not contract.itm(close) and not math.isnan(contract.theta):
+                        weighted_theta_agg += contract.price * contract.theta
+                        price_total += contract.price
+                result[expiration] = weighted_theta_agg / price_total
+        return result

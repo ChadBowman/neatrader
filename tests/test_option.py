@@ -1,27 +1,20 @@
 import unittest
 from neatrader.model import Option, Security, OptionChain, Quote
+from neatrader.preprocess import CsvImporter
 from datetime import datetime
 from utils import TSLA
+from pathlib import Path
 
 
 class TestOptionChain(unittest.TestCase):
     def test_search(self):
-        security = Security('TSLA')
-        o1 = Option('call', security, 500, datetime(2020, 4, 1))
-        o1.theta = -2.02
-        o1.delta = 0.83
-        o2 = Option('put', security, 300, datetime(2020, 4, 20))
-        o2.theta = -0.16
-        o2.delta = -0.34
+        importer = CsvImporter()
+        chain = next(importer.chains(Path('tests/test_data/TSLA')))
 
-        chain = OptionChain(security, datetime.now())
-        chain.add_option(o1)
-        chain.add_option(o2)
+        result = chain.search(372.72, theta=-1.13, delta=0.3503)
 
-        result = chain.search(theta=-2, delta=0.8)
-        self.assertEqual(o1.strike, result.strike)
-        result = chain.search(theta=-1, delta=-0.5)
-        self.assertEqual(o2.strike, result.strike)
+        self.assertEqual(datetime(2020, 9, 25), result.expiration)
+        self.assertEqual(420, result.strike)
 
     def test_otm(self):
         security = Security('TSLA')

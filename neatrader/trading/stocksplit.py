@@ -1,4 +1,5 @@
 import pandas as pd
+from copy import deepcopy
 
 
 class StockSplitHandler:
@@ -12,7 +13,9 @@ class StockSplitHandler:
             split_date, multiplier = row
             if split_date == date:
                 new_stocks = self._calculate_new_stocks(portfolio.stocks(), multiplier)
-                new_contracts = self._calculate_new_contracts(portfolio.contracts(), multiplier)
+                new_contracts, to_del = self._calculate_new_contracts(portfolio.contracts(), multiplier)
+                for contract in to_del:
+                    del portfolio.securities[contract]
                 portfolio.securities = {**portfolio.securities, **new_stocks, **new_contracts}
 
     def _calculate_new_stocks(self, stocks, multiplier):
@@ -24,9 +27,12 @@ class StockSplitHandler:
 
     def _calculate_new_contracts(self, contracts, multiplier):
         new_contracts = {}
+        to_del = []
         for contract, amt in contracts.items():
             if contract.security == self.security:
-                contract.price = contract.price / multiplier
-                contract.strike = contract.strike / multiplier
-                new_contracts[contract] = amt * multiplier
-        return new_contracts
+                contract_copy = deepcopy(contract)
+                contract_copy.price = contract.price / multiplier
+                contract_copy.strike = contract.strike / multiplier
+                new_contracts[contract_copy] = amt * multiplier
+                to_del.append(contract)
+        return (new_contracts, to_del)

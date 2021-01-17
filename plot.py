@@ -1,14 +1,26 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from neatrader.preprocess.normalizer import min_max
 from pathlib import Path
+from neatrader.preprocess import CsvImporter
+from neatrader.model import Security
+from datetime import datetime
 
 raw = pd.read_csv('data/TSLA/chains/200207.csv')
 
+importer = CsvImporter()
+tsla = Security('TSLA')
+chain = importer.parse_chain(datetime(2020, 9, 11), tsla, Path('normalized/TSLA/chains/200911.csv'))
+
+# 372.72
+exp = chain._expirations_by_price_weighted_theta('call', 372.72)
+e = []
+t = []
+for expiration, theta in exp.items():
+    e.append(expiration)
+    t.append(theta)
+df = pd.DataFrame.from_dict({'expiration': e, 'theta': t})
+
 plt.close('all')
-raw = raw[raw['direction'] == 'put']
-raw = raw[['expiration', 'theta']].replace(-9999999.0, np.nan)
-raw = raw[raw['expiration'] < 205000]
-raw.sort_values('expiration').plot.scatter(x='expiration', y='theta')
+df.plot(x='expiration', y='theta')
 plt.show()

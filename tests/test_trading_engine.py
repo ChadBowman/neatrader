@@ -10,6 +10,7 @@ class TestTradingEngine(unittest.TestCase):
         call = Option('call', TSLA, 500, datetime(2020, 12, 28))
         secs = {TSLA: 100, call: -1}
         port = Portfolio(420, secs)
+        port.collateral[TSLA] = 100
         te = TradingEngine()
 
         te.assign(port, call, -1)
@@ -17,10 +18,12 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(420 + 50000, port.cash)
         self.assertEqual(0, port.securities[TSLA])
         self.assertEqual(0, port.securities[call])
+        self.assertEqual(0, port.collateral[TSLA])
 
     def test_assign_put(self):
         put = Option('put', TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(70000, {TSLA: 12, put: -1})
+        port.collateral[TSLA] = 100
         te = TradingEngine()
 
         te.assign(port, put, -1)
@@ -28,6 +31,7 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(70_000 - 50_000, port.cash)
         self.assertEqual(112, port.securities[TSLA])
         self.assertEqual(0, port.securities[put])
+        self.assertEqual(0, port.collateral[TSLA])
 
     def test_eval(self):
         call = Option('call', TSLA, 400, datetime(2020, 12, 28))

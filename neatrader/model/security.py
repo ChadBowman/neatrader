@@ -12,6 +12,15 @@ class Security:
     def __repr__(self):
         return str(self)
 
+    def __eq__(self, other):
+        return self.symbol == other.symbol
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self.symbol)
+
     def add_quote(self, quote):
         self.quotes = {quote.date: quote}
 

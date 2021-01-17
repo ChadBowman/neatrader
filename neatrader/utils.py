@@ -10,6 +10,8 @@ def flatten_dict(d):
 
 
 def small_date(date):
+    if isinstance(date, str):
+        date = datetime.strptime(date, '%Y-%m-%d')
     return date.strftime('%y%m%d')
 
 
