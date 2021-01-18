@@ -40,8 +40,8 @@ class Option:
     def __hash__(self):
         return hash((self.direction, self.security, self.strike, self.expiration))
 
-    def expires(self, datetime):
-        return self.expiration.date() == datetime.date()
+    def expired(self, datetime):
+        return self.expiration.date() <= datetime.date()
 
     def itm(self, price):
         if self.direction == 'call' and price > self.strike:
@@ -172,5 +172,8 @@ class OptionChain:
                     if not contract.itm(close) and not math.isnan(contract.theta):
                         weighted_theta_agg += contract.price * contract.theta
                         price_total += contract.price
-                result[expiration] = weighted_theta_agg / price_total
+                if price_total == 0:
+                    result[expiration] = 100  # undefined
+                else:
+                    result[expiration] = weighted_theta_agg / price_total
         return result

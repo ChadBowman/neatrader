@@ -135,3 +135,6 @@ dmypy.json
 # processed fies
 data/
 normalized/
+
+# neatrader
+neatrader-checkpoint-*

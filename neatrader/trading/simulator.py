@@ -1,6 +1,7 @@
 from neatrader.trading import TradingEngine, StockSplitHandler
 from neatrader.preprocess import CsvImporter
 from neatrader.utils import small_date
+from datetime import timedelta
 import numpy as np
 import pandas as pd
 
@@ -20,26 +21,23 @@ class Simulator:
         close = None
         for row in self._days_in_range(start, end):
             params = self._map_row(row)
-            if not np.isnan(params[1::]).any():
-                date = params[0]
-                close = params[1]
+            date = params[0]
+            params = params[1::]  # shave off date
+            if not np.isnan(params).any():
+                close = params[0]
                 try:
                     # Check for stock split and adjust portfolio accordingly
                     self.split_handler.check_and_invoke(self.portfolio, date)
 
                     # Activate! 🤖
-                    buy, sell, hold, delta, theta = net.activate(params[1::])
+                    buy, sell, hold, delta, theta = net.activate(params)
 
-                    # HOLD BUY SELL
-                    if hold > buy and hold > sell:
-                        continue
-                    else:
-                        # This is EXTREMELY expensive!
-                        chain = self._chain_for_date(date)
-                        if buy > sell and buy > hold:
-                            self._buy(chain)
-                        else:
-                            self._sell(chain, close, delta, theta)
+                    # Buy
+                    if buy > sell and buy > hold:
+                        self._buy(date)
+                    # Sell
+                    elif sell > buy and sell > hold:
+                        self._sell(date, close, delta, theta)
 
                     # process assignments, expirations
                     self.engine.eval({self.security: self._denormalize(close)}, date)
@@ -47,23 +45,29 @@ class Simulator:
                     print(f"Failed on {self.security}:{date}")
                     raise e
 
-        final_chain = self._chain_for_date(end)
-        return self._calculate_fitness(close, final_chain)
+        return self._calculate_fitness(close, end)
 
-    def _chain_for_date(self, date):
-        return self.importer.parse_chain(
-            date, self.security, self.path / 'chains' / f"{small_date(date)}.csv"
-        )
+    def _most_recent_chain(self, date):
+        while True:
+            path = self.path / 'chains' / f"{small_date(date)}.csv"
+            if path.exists():
+                return self.importer.parse_chain(date, self.security, path)
+            else:
+                date -= timedelta(days=1)
 
-    def _calculate_fitness(self, close, chain):
+    def _calculate_fitness(self, close, end):
         cash = 0
         for contract, amt in self.portfolio.contracts().items():
-            # option prices are not normalized
-            cash += chain.get_price(contract) * amt * 100
+            if amt != 0:
+                chain = self._most_recent_chain(end)
+                # option prices are not normalized
+                cash += chain.get_price(contract) * amt * 100
+        denorm_close = self._denormalize(close)
         for stock, amt in self.portfolio.stocks().items():
-            cash += amt * self._denormalize(close)
+            cash += amt * denorm_close
         cash += self.portfolio.cash
-        return cash
+        # compare against a buy-and-hold strategy
+        return cash - (100 * denorm_close)
 
     def _days_in_range(self, start, end):
         mask = (self.ta['date'] > start) & (self.ta['date'] <= end)
@@ -83,28 +87,27 @@ class Simulator:
         rsi = row['rsi']
         return (date, close, macd, macd_signal, macd_diff, bb_bbm, bb_bbh, bb_bbl, rsi)
 
-    def _buy(self, chain):
+    def _buy(self, date):
         # only covered calls are supported right now so this means close the position
-        if self.portfolio.contracts():
-            # get the only contract
-            contract = next(iter(self.portfolio.contracts().keys()))
-            new_price = chain.get_price(contract)
-            try:
-                print(f"closing {contract}")
-                self.engine.buy_contract(self.portfolio, contract, new_price)
-            except Exception as e:
-                print(e)
+        for contract, amt in self.portfolio.contracts().items():
+            if amt < 0:
+                # right now there should only be one short contract at a time
+                chain = self._most_recent_chain(date)
+                new_price = chain.get_price(contract)
+                try:
+                    self.engine.buy_contract(self.portfolio, contract, new_price)
+                except Exception as e:
+                    print(e)
 
-    def _sell(self, chain, close, delta, theta):
+    def _sell(self, date, close, delta, theta):
         if not self.portfolio.contracts():
+            chain = self._most_recent_chain(date)
             # sell a new contract
             contract = chain.search(self._denormalize(close), delta=delta, theta=theta)
             try:
-                print(f"selling {contract} for ${contract.price}")
                 self.engine.sell_contract(self.portfolio, contract, contract.price)
             except Exception as e:
                 print(e)
-                raise e
 
     def _denormalize(self, x):
         mn = self.scales.loc['close', 'min']

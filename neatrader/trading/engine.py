@@ -12,16 +12,13 @@ class TradingEngine:
             for contract, amt in portfolio.contracts().items():
                 # here security means option underlying security
                 for security, price in prices.items():
-                    if contract.security == security and contract.expires(date):
+                    if contract.security == security and contract.expired(date):
                         if contract.itm(price):
                             if amt < 0:
-                                print(f"assign: {contract}")
                                 self.assign(portfolio, contract, amt)
                             elif amt > 0:
-                                print('exercise')
                                 self.exercise(portfolio, contract, amt)
                         else:
-                            print('expire')
                             self.expire(portfolio, contract, amt)
 
     def expire(self, portfolio, contract, amt):

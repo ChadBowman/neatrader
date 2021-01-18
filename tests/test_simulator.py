@@ -3,7 +3,6 @@ import pandas as pd
 from utils import TSLA
 from neatrader.model import Portfolio, Option
 from neatrader.trading import Simulator
-from neatrader.preprocess import CsvImporter
 from pathlib import Path
 from datetime import datetime
 
@@ -53,11 +52,9 @@ class TestSimulator(unittest.TestCase):
         path = Path('tests/test_data/normalized/TSLA')
         call = Option('call', TSLA, 420, datetime(2020, 9, 11))
         portfolio = Portfolio(cash=144, securities={call: -1})
-        importer = CsvImporter()
 
         sim = Simulator(TSLA, portfolio, path)
-        chain = importer.parse_chain(datetime(2020, 9, 8), TSLA, path / 'chains' / '200908.csv')
-        sim._buy(chain)
+        sim._buy(datetime(2020, 9, 8))
 
         self.assertEqual(0, portfolio.securities[call])
         self.assertEqual(0, portfolio.cash)
@@ -65,12 +62,10 @@ class TestSimulator(unittest.TestCase):
     def test_open_short_call(self):
         path = Path('tests/test_data/normalized/TSLA')
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
-        importer = CsvImporter()
 
         sim = Simulator(TSLA, portfolio, path)
-        chain = importer.parse_chain(datetime(2020, 9, 8), TSLA, path / 'chains' / '200908.csv')
         sim._sell(
-            chain,
+            datetime(2020, 9, 8),
             0.2734645354273816,  # normalized close for 9/8
             0.298,  # should target the 420 strike
             0.75  # should target 10/2 expiration
@@ -86,13 +81,12 @@ class TestSimulator(unittest.TestCase):
         path = Path('tests/test_data/normalized/TSLA')
         call = Option('call', TSLA, 420, datetime(2020, 9, 11))
         portfolio = Portfolio(cash=10, securities={TSLA: 100, call: -1})
-        importer = CsvImporter()
-        chain = importer.parse_chain(datetime(2020, 9, 8), TSLA, path / 'chains' / '200908.csv')
 
         sim = Simulator(TSLA, portfolio, path)
-        actual = sim._calculate_fitness(0.2990607757568724, chain)  # 420.28
-        expected = 10 + (420 * 100) - (1.44 * 100)
-        self.assertAlmostEqual(expected, actual, places=-2)
+        actual = sim._calculate_fitness(0.2990607757568724, datetime(2020, 9, 8))  # 420.28
+        # starting cash + value of shares - call obligation - buy-and-hold value
+        expected = 10 + (420.28 * 100) - (1.44 * 100) - (420.28 * 100)
+        self.assertAlmostEqual(expected, actual, places=2)
 
     def test_hold_only(self):
         path = Path('tests/test_data/normalized/TSLA')
@@ -103,7 +97,8 @@ class TestSimulator(unittest.TestCase):
         fitness = sim.simulate(net, datetime(2020, 9, 8), datetime(2020, 9, 11))
 
         # TSLA closed at 372.72 on 9/11
-        self.assertAlmostEqual(100 * 372.72, fitness, places=3)
+        # buy-and-hold is the fitness base-line
+        self.assertAlmostEqual(0, fitness, places=3)
 
     def test_sell_and_get_assigned(self):
         path = Path('tests/test_data/normalized/TSLA')
@@ -115,11 +110,12 @@ class TestSimulator(unittest.TestCase):
 
         fitness = sim.simulate(net, datetime(2020, 9, 10), datetime(2020, 9, 18))
 
-        expected = (3.25 * 100) + (440 * 100)
+        # premium + assigned cash - buy-and-hold value
+        expected = (3.25 * 100) + (440 * 100) - (442.15 * 100)
         self.assertAlmostEqual(expected, fitness, places=2)
         self.assertEqual(0, portfolio.securities[TSLA])
         self.assertEqual(0, portfolio.collateral[TSLA])
-        self.assertEqual(expected, portfolio.cash)
+        self.assertEqual(44325, portfolio.cash)
 
     def test_sell_and_expire(self):
         path = Path('tests/test_data/normalized/TSLA')
@@ -131,8 +127,21 @@ class TestSimulator(unittest.TestCase):
 
         fitness = sim.simulate(net, datetime(2020, 9, 10), datetime(2020, 9, 18))
 
-        expected = (2.9 * 100) + (442.15 * 100)
+        # premium + held shares value - buy-and-hold value
+        expected = (2.9 * 100) + (442.15 * 100) - (442.15 * 100)
         self.assertAlmostEqual(expected, fitness, places=2)
         self.assertEqual(100, portfolio.securities[TSLA])
         self.assertEqual(0, portfolio.collateral[TSLA])
         self.assertEqual(290, portfolio.cash)
+
+    def test_expire_without_close_on_expiration(self):
+        path = Path('tests/test_data/normalized/TSLA')
+        call = Option('call', TSLA, 2800, datetime(2020, 7, 24))
+        portfolio = Portfolio(cash=0, securities={TSLA: 100, call: -1})
+        portfolio.collateral = {TSLA: 100}
+        sim = Simulator(TSLA, portfolio, path)
+        net = BuyAndHold()
+
+        sim.simulate(net, datetime(2020, 7, 23), datetime(2020, 7, 31))
+
+        self.assertEqual(0, portfolio.securities.get(call, 0))

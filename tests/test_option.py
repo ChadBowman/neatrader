@@ -54,10 +54,11 @@ class TestOptionChain(unittest.TestCase):
         result = chain.iv(datetime(2020, 4, 20))
         self.assertEqual(expected, result)
 
-    def test_option_expires(self):
+    def test_option_expired(self):
         security = Security('TSLA')
         call = Option('call', security, 420, datetime(2020, 12, 4))
-        self.assertTrue(call.expires(datetime(2020, 12, 4)))
+        self.assertTrue(call.expired(datetime(2020, 12, 4)))
+        self.assertTrue(call.expired(datetime(2020, 12, 5)))
 
     def test_option_itm(self):
         security = Security('TSLA')

@@ -61,10 +61,12 @@ class TestTradingEngine(unittest.TestCase):
         port = Portfolio(50000, {TSLA: 100, call: 1, put: 1})
         te = TradingEngine([port])
 
-        te.eval({TSLA: 650}, datetime(2020, 12, 30))
+        te.eval({TSLA: 650}, datetime(2020, 12, 27))
 
         self.assertEqual(50000, port.cash)
         self.assertEqual(100, port.securities[TSLA])
+        self.assertEqual(1, port.securities[call])
+        self.assertEqual(1, port.securities[put])
 
     def test_buy_contract(self):
         call = Option('call', TSLA, 500, datetime(2020, 12, 28))
