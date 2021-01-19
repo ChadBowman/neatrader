@@ -17,6 +17,18 @@ class AlwaysSell:
         return (0, 1, 0, self.delta, self.theta)
 
 
+class SellOnce:
+    def __init__(self):
+        self.sold = False
+
+    def activate(self, params):
+        if self.sold:
+            return (0, 0, 1, 0, 0)  # hold
+        else:
+            self.sold = True
+            return (0, 1, 0, self.delta, self.theta)
+
+
 class TestSimulator(unittest.TestCase):
     def test_simulate_range(self):
         path = Path('tests/test_data/normalized/TSLA')
@@ -121,11 +133,11 @@ class TestSimulator(unittest.TestCase):
         path = Path('tests/test_data/normalized/TSLA')
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
         sim = Simulator(TSLA, portfolio, path)
-        net = AlwaysSell()
+        net = SellOnce()
         net.theta = 0.637095  # target 9/18 expiration
         net.delta = 0.1249  # target 445 strike since close on 9/18 was 442.15
 
-        fitness = sim.simulate(net, datetime(2020, 9, 10), datetime(2020, 9, 18))
+        fitness = sim.simulate(net, datetime(2020, 9, 8), datetime(2020, 9, 18))
 
         # premium + held shares value - buy-and-hold value
         expected = (2.9 * 100) + (442.15 * 100) - (442.15 * 100)
@@ -142,6 +154,6 @@ class TestSimulator(unittest.TestCase):
         sim = Simulator(TSLA, portfolio, path)
         net = BuyAndHold()
 
-        sim.simulate(net, datetime(2020, 7, 23), datetime(2020, 7, 31))
+        sim.simulate(net, datetime(2020, 7, 23), datetime(2020, 8, 3))
 
         self.assertEqual(0, portfolio.securities.get(call, 0))

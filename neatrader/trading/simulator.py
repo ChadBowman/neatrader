@@ -22,10 +22,13 @@ class Simulator:
         for row in self._days_in_range(start, end):
             params = self._map_row(row)
             date = params[0]
+            close = params[1]
             params = params[1::]  # shave off date
-            if not np.isnan(params).any():
-                close = params[0]
-                try:
+            try:
+                # process assignments, expirations
+                self.engine.eval({self.security: self._denormalize(close)}, date)
+
+                if not np.isnan(params).any():
                     # Check for stock split and adjust portfolio accordingly
                     self.split_handler.check_and_invoke(self.portfolio, date)
 
@@ -38,12 +41,9 @@ class Simulator:
                     # Sell
                     elif sell > buy and sell > hold:
                         self._sell(date, close, delta, theta)
-
-                    # process assignments, expirations
-                    self.engine.eval({self.security: self._denormalize(close)}, date)
-                except Exception as e:
-                    print(f"Failed on {self.security}:{date}")
-                    raise e
+            except Exception as e:
+                print(f"Failed on {self.security}:{date}")
+                raise e
 
         return self._calculate_fitness(close, end)
 
