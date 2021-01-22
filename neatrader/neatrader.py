@@ -12,11 +12,9 @@ def eval_genomes(genomes, config):
     for genome_id, genome in genomes:
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
-        start = datetime(2020, 6, 1)
-        end = datetime(2020, 7, 31)
         sim = Simulator(TSLA, portfolio, Path('normalized/TSLA'))
 
-        genome.fitness = sim.simulate(net, start, end)
+        genome.fitness = sim.simulate(net, duration=90)
 
 
 def run(config_file):

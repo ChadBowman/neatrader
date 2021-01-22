@@ -24,3 +24,11 @@ def add_value(dic, key, val):
         dic[key].append(val)
     else:
         dic[key] = [val]
+
+
+def days_between(start, end):
+    """
+    Returns the number of days between two dates. End date is exclusive.
+    Example: will return 31 when start=2021-01-01 and end=20201-02-01
+    """
+    return divmod((end-start).total_seconds(), 86400)[0]

@@ -1,7 +1,8 @@
 from neatrader.trading import TradingEngine, StockSplitHandler
 from neatrader.preprocess import CsvImporter
-from neatrader.utils import small_date
+from neatrader.utils import small_date, days_between
 from datetime import timedelta
+import random as rand
 import numpy as np
 import pandas as pd
 
@@ -16,8 +17,11 @@ class Simulator:
         self.engine = TradingEngine([portfolio])
         self.split_handler = StockSplitHandler(path / 'splits.csv', security)
         self.importer = CsvImporter()
+        self.training_duration = self._training_duration()
 
-    def simulate(self, net, start, end):
+    def simulate(self, net, start=None, end=None, duration=None):
+        if not start and not end and duration:
+            start, end = self._random_date_range(duration)
         close = None
         for row in self._days_in_range(start, end):
             params = self._map_row(row)
@@ -46,6 +50,27 @@ class Simulator:
                 raise e
 
         return self._calculate_fitness(close, end)
+
+    def _training_duration(self):
+        mn = min(self.ta['date'])
+        mx = max(self.ta['date'])
+        return days_between(mn, mx)
+
+    def _date_range_by_end_target(self, duration, end_target):
+        """
+        Returns a date range (start, end) that that ensures an end date
+        that is a trading day with a closing price and includes duration
+        amount of calendar days in the range. The start date is not guarenteed
+        to be a trading day or have a closing price.
+        """
+        i = round(end_target / self.training_duration * len(self.ta)-1)
+        end = self.ta.loc[i, 'date']
+        start = end - timedelta(days=duration)
+        return (start, end)
+
+    def _random_date_range(self, duration):
+        end_date_target = rand.randint(duration, self.training_duration)
+        return self._date_range_by_end_target(duration, end_date_target)
 
     def _most_recent_chain(self, date):
         while True:

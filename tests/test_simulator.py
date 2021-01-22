@@ -3,6 +3,7 @@ import pandas as pd
 from utils import TSLA
 from neatrader.model import Portfolio, Option
 from neatrader.trading import Simulator
+from neatrader.utils import days_between
 from pathlib import Path
 from datetime import datetime
 
@@ -157,3 +158,29 @@ class TestSimulator(unittest.TestCase):
         sim.simulate(net, datetime(2020, 7, 23), datetime(2020, 8, 3))
 
         self.assertEqual(0, portfolio.securities.get(call, 0))
+
+    def test_range_by_end_target(self):
+        path = Path('tests/test_data/normalized/TSLA')
+        portfolio = Portfolio()
+        sim = Simulator(TSLA, portfolio, path)
+
+        duration = 90
+        # test ta.csv should have 184 records spanning 275 days
+        # this should yield the latest possible range
+        start, end = sim._date_range_by_end_target(duration, 275)
+        self.assertEqual(datetime(2020, 10, 2), end)
+        self.assertEqual(duration, days_between(start, end))
+
+        # the earliest possble range
+        start, end = sim._date_range_by_end_target(duration, duration)
+        self.assertEqual(datetime(2019, 12, 31), start)
+        self.assertEqual(duration, days_between(start, end))
+
+    def test_random_date_range(self):
+        path = Path('tests/test_data/normalized/TSLA')
+        portfolio = Portfolio()
+        sim = Simulator(TSLA, portfolio, path)
+
+        duration = 42
+        start, end = sim._random_date_range(42)
+        self.assertEqual(duration, days_between(start, end))
