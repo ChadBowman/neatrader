@@ -1,27 +1,31 @@
-from neatrader.trading import TradingEngine, StockSplitHandler
-from neatrader.preprocess import CsvImporter
-from neatrader.utils import small_date, days_between
-from datetime import timedelta
-import random as rand
 import numpy as np
 import pandas as pd
+from neatrader.trading import TradingEngine, StockSplitHandler
+from neatrader.preprocess import CsvImporter
+from neatrader.utils import small_date
+from neatrader.math import un_min_max
+from datetime import timedelta
 
 
 class Simulator:
-    def __init__(self, security, portfolio, path):
+    def __init__(self, security, portfolio, path, training):
         self.security = security
         self.portfolio = portfolio
         self.path = path
-        self.ta = pd.read_csv(path / 'ta.csv', parse_dates=['date'])
+        self.training = training
         self.scales = pd.read_csv(path / 'scales.csv', index_col=0)
         self.engine = TradingEngine([portfolio])
         self.split_handler = StockSplitHandler(path / 'splits.csv', security)
         self.importer = CsvImporter()
-        self.training_duration = self._training_duration()
 
-    def simulate(self, net, start=None, end=None, duration=None):
-        if not start and not end and duration:
-            start, end = self._random_date_range(duration)
+    def simulate(self, net, start=None, end=None):
+        """
+        runs a simulation with provided network
+
+        net: neural network
+        start: datetime to start simulation
+        end: datetime to end the simulation
+        """
         close = None
         for row in self._days_in_range(start, end):
             params = self._map_row(row)
@@ -51,27 +55,6 @@ class Simulator:
 
         return self._calculate_fitness(close, end)
 
-    def _training_duration(self):
-        mn = min(self.ta['date'])
-        mx = max(self.ta['date'])
-        return days_between(mn, mx)
-
-    def _date_range_by_end_target(self, duration, end_target):
-        """
-        Returns a date range (start, end) that that ensures an end date
-        that is a trading day with a closing price and includes duration
-        amount of calendar days in the range. The start date is not guarenteed
-        to be a trading day or have a closing price.
-        """
-        i = round(end_target / self.training_duration * len(self.ta)-1)
-        end = self.ta.loc[i, 'date']
-        start = end - timedelta(days=duration)
-        return (start, end)
-
-    def _random_date_range(self, duration):
-        end_date_target = rand.randint(duration, self.training_duration)
-        return self._date_range_by_end_target(duration, end_date_target)
-
     def _most_recent_chain(self, date):
         while True:
             path = self.path / 'chains' / f"{small_date(date)}.csv"
@@ -95,8 +78,8 @@ class Simulator:
         return cash - (100 * denorm_close)
 
     def _days_in_range(self, start, end):
-        mask = (self.ta['date'] > start) & (self.ta['date'] <= end)
-        for idx, row in self.ta.loc[mask].iterrows():
+        mask = (self.training['date'] > start) & (self.training['date'] <= end)
+        for idx, row in self.training.loc[mask].iterrows():
             yield row
 
     def _map_row(self, row):
@@ -137,4 +120,4 @@ class Simulator:
     def _denormalize(self, x):
         mn = self.scales.loc['close', 'min']
         mx = self.scales.loc['close', 'max']
-        return (x * (mx - mn)) + mn
+        return un_min_max(x, mn, mx)

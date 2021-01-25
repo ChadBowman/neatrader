@@ -1,12 +1,12 @@
 import pandas as pd
-from neatrader.utils import from_small_date
+from neatrader.utils import small_date, from_small_date
 from ta.utils import dropna
 from ta.trend import MACD
 from ta.volatility import BollingerBands
 from ta.momentum import RSIIndicator
 
 
-class TechnicalAnalysis:
+class TrainingSetGenerator:
     def __init__(self, source_path):
         self.source_path = source_path
 
@@ -19,10 +19,15 @@ class TechnicalAnalysis:
         self._rsi(df, close)
         return df
 
-    def to_csv(self, out_path=None):
-        file_path = out_path if out_path else self.source_path / 'ta.csv'
+    def to_csv(self, out_path=None, cv_proportion=0.2):
+        file_path = out_path if out_path else self.source_path
         df = self.generate()
-        df.to_csv(file_path, encoding='utf-8', index=False)
+        df['date'] = df['date'].apply(small_date)
+        size = len(df)
+        training_size = int(size * (1 - cv_proportion))
+        df[:training_size].to_csv(file_path / 'training.csv', encoding='utf-8', index=False)
+        # cross validation always uses the most recent data
+        df[training_size:].to_csv(file_path / 'cross_validation.csv', encoding='utf-8', index=False)
         return file_path
 
     def _macd(self, df, close):

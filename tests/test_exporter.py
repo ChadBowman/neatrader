@@ -9,7 +9,7 @@ from neatrader.preprocess import EtradeImporter, CsvExporter
 class TestCsvExporter(unittest.TestCase):
     def test_to_csv_quote(self):
         importer = EtradeImporter()
-        exporter = CsvExporter('tests')
+        exporter = CsvExporter('tests/test_data/TSLA')
         tsla = utils.fetch_resource('test_data/etrade/2020-09-09/TSLA.json')
         chain = importer.from_json(tsla)
         tsla = utils.fetch_resource('test_data/etrade/2020-09-10/TSLA.json')

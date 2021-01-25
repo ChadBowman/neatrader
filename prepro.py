@@ -1,30 +1,33 @@
 import neatrader.preprocess as p
+from neatrader.preprocess import CsvExporter
 from pathlib import Path
 import pandas as pd
-import shutil
-
-importer = p.EtradeImporter(Path('/Volumes/TrainingData/etrade'))
-exporter = p.CsvExporter('data')
-daterange = pd.date_range(start='2020-01-01', end='2020-12-31')
-norm = p.Normalizer(Path('data/TSLA'))
 
 
-def standardize():
-    #shutil.rmtree('data/TSLA')
+def standardize(path, daterange):
+    importer = p.EtradeImporter(Path('/Volumes/TrainingData/etrade'))
+    exporter = CsvExporter(path)
     for chain in importer.for_dates('TSLA', daterange):
         if chain:
             print(f"adding {chain}")
             exporter.to_csv(chain)
 
 
-def ta():
-    p.TechnicalAnalysis(Path('data/TSLA')).to_csv()
+def training(path):
+    print("creating training/cross validation sets")
+    p.TrainingSetGenerator(path / 'TSLA').to_csv()
 
 
-def normalize():
-    norm.to_csv(Path('normalized/TSLA'))
+def normalize(in_path, out_path):
+    print("normalizing training sets")
+    norm = p.Normalizer(in_path / 'TSLA')
+    norm.to_csv(out_path / 'TSLA')
 
 
-#standardize()
-ta()
-normalize()
+data_path = Path('data') / 'TSLA'
+daterange = pd.date_range(start='2018-12-27', end='2021-01-21')
+test_path = Path('tests/test_data')
+
+#standardize(Path('data'), daterange)
+#training(Path('data'))
+normalize(Path('data'), Path('normalized'))

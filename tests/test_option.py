@@ -10,10 +10,12 @@ class TestOptionChain(unittest.TestCase):
     def test_search(self):
         importer = CsvImporter()
         chain = next(importer.chains(Path('tests/test_data/TSLA')))
+        self.assertEqual('TSLA20200903', str(chain))
 
-        result = chain.search(372.72, theta=-1.13, delta=0.3503)
-
-        self.assertEqual(datetime(2020, 9, 25), result.expiration)
+        result = chain.search(372.72, theta=-1.2863, delta=0.4955)
+        # direction,expiration,strike,price,iv,delta,theta,vega
+        # call,200918,420.0,32.45,1.155,0.4955,-1.2863,0.3296
+        self.assertEqual(datetime(2020, 9, 18), result.expiration)
         self.assertEqual(420, result.strike)
 
     def test_otm(self):
