@@ -2,10 +2,12 @@ from __future__ import print_function
 
 import copy
 import warnings
-
 import graphviz
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from neatrader.utils import from_small_date
+from neatrader.math import un_min_max
 
 
 def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg'):
@@ -19,16 +21,25 @@ def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg'):
     avg_fitness = np.array(statistics.get_fitness_mean())
     stdev_fitness = np.array(statistics.get_fitness_stdev())
 
-    plt.plot(generation, avg_fitness, 'b-', label="average")
-    plt.plot(generation, avg_fitness - stdev_fitness, 'g-.', label="-1 sd")
-    plt.plot(generation, avg_fitness + stdev_fitness, 'g-.', label="+1 sd")
-    plt.plot(generation, best_fitness, 'r-', label="best")
+    plt.plot(generation, best_fitness, 'g-', label="best")
+    plt.plot(generation, avg_fitness + stdev_fitness, 'b-', label="+1 sd")
+    plt.plot(generation, avg_fitness, 'm-', label="average")
+    plt.plot(generation, avg_fitness - stdev_fitness, 'r-', label="-1 sd")
+
+    if hasattr(statistics.most_fit_genomes[0], 'cv_fitness'):
+        best_cv_fitness = [c.cv_fitness for c in statistics.most_fit_genomes]
+        avg_cv_fitness = np.array(statistics.get_fitness_mean(cross_validation=True))
+        stdev_cv_fitness = np.array(statistics.get_fitness_stdev(cross_validation=True))
+        plt.plot(generation, best_cv_fitness, 'g-.')
+        plt.plot(generation, avg_cv_fitness + stdev_cv_fitness, 'b-.')
+        plt.plot(generation, avg_cv_fitness, 'm-.')
+        plt.plot(generation, avg_cv_fitness - stdev_cv_fitness, 'r-.')
 
     plt.title("Population's average and best fitness")
     plt.xlabel("Generations")
     plt.ylabel("Fitness")
     plt.grid()
-    plt.legend(loc="best")
+    plt.legend(loc="lower right")
     if ylog:
         plt.gca().set_yscale('symlog')
 
@@ -197,22 +208,40 @@ def draw_net(config, genome, view=False, filename=None, node_names=None,
     return dot
 
 
-def plot_trades(trades, stock, view=False, filename='trades.svg'):
-    """ Visualizes trades from a single neural network. """
+def plot_trades(network, simulator, daterange, training, path, reporter, view=False, filename='trades.svg'):
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
         return
 
-    fig, ax = plt.subplots()
-    ax.stackplot(stock.iloc[:, 2])
+    scales = pd.read_csv(path / 'scales.csv', index_col=0)
 
-    plt.title("")
-    plt.ylabel("TSLA Price")
-    plt.xlabel("")
+    plt.title("Trades")
+    plt.ylabel("Price")
+    plt.xlabel("Time")
+
+    start, end = daterange
+    mask = (training['date'] >= start) & (training['date'] <= end)
+    df = training.loc[mask]
+    plt.plot(df['date'], un_min_max(df['close'], scales['min']['close'], scales['max']['close']))
+
+    simulator.simulate(network, start, end)
+
+    actions = reporter.to_df()
+    if not actions.empty:
+        print(actions)
+        for i, row in actions[actions['action'] == 'sell'].iterrows():
+            plt.axvline(x=row['date'], color='g')
+        for i, row in actions[actions['action'] == 'buy'].iterrows():
+            plt.axvline(x=row['date'], color='b')
+        for i, row in actions[actions['action'] == 'assign'].iterrows():
+            plt.axvline(x=row['date'], color='r')
+        for i, row in actions[actions['action'] == 'exercise'].iterrows():
+            plt.axvline(x=row['date'], color='c')
+        for i, row in actions[actions['action'] == 'expire'].iterrows():
+            plt.axvline(x=row['date'], color='k')
 
     plt.savefig(filename)
 
     if view:
         plt.show()
-
     plt.close()

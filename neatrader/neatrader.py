@@ -1,9 +1,12 @@
 import neat
 import pandas as pd
+from glob import glob
+import neatrader.visualize as vis
 from neatrader.model import Portfolio, Security
 from neatrader.trading import Simulator
 from neatrader.daterange import DateRangeFactory
 from neatrader.utils import from_small_date
+from neatrader.reporter import TradeReporter
 from pathlib import Path
 from multiprocessing import Process, Manager
 
@@ -52,18 +55,36 @@ def run(config_file):
         config_file
     )
 
-    # create population, which is the top-level object for a NEAT run
-    pop = neat.Population(config)
-    stats = neat.StatisticsReporter()
+    while True:
+        checkpoint = sorted(glob('neat-checkpoint-*'), reverse=True)
+        if checkpoint:
+            pop = neat.Checkpointer.restore_checkpoint(checkpoint[0])
+        else:
+            pop = neat.Population(config)
 
-    # add a stdout reporter to show progress in terminal
-    pop.add_reporter(neat.StdOutReporter(True))
-    pop.add_reporter(neat.Checkpointer(10, 60, 'neatrader-checkpoint-'))
-    pop.add_reporter(stats)
+        stats = neat.StatisticsReporter()
 
-    winner = pop.run(eval_genomes, )
+        # add a stdout reporter to show progress in terminal
+        pop.add_reporter(neat.StdOutReporter(True))
+        pop.add_reporter(stats)
+        pop.add_reporter(neat.Checkpointer(50))
 
-    # display the winning genome
-    print(f"\nBest genome:\n{winner}")
+        winner = pop.run(eval_genomes, 50)
 
-    win_net = neat.nn.FeedForwardNetwork.create(winner, config)
+        # display the winning genome
+        print(f"\nBest genome:\n{winner}")
+
+        win_net = neat.nn.FeedForwardNetwork.create(winner, config)
+
+        view = False
+        vis.plot_stats(stats, ylog=False, view=view)
+        vis.plot_species(stats, view=view)
+
+        portfolio = Portfolio(cash=0, securities={TSLA: 100})
+        simulator = Simulator(TSLA, portfolio, path, training)
+        daterange = training_daterange_factory.random_date_range(90)
+        reporter = TradeReporter()
+        vis.plot_trades(win_net, simulator, daterange, training, path, reporter, view=view)
+
+        node_names = {0: 'Buy', 1: 'Sell', 2: 'Hold', 3: 'Delta', 4: 'Theta'}
+        vis.draw_net(config, winner, view=view, node_names=node_names)

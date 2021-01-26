@@ -8,13 +8,14 @@ from datetime import timedelta
 
 
 class Simulator:
-    def __init__(self, security, portfolio, path, training):
+    def __init__(self, security, portfolio, path, training, reporter=None):
         self.security = security
         self.portfolio = portfolio
         self.path = path
         self.training = training
+        self.reporter = reporter
         self.scales = pd.read_csv(path / 'scales.csv', index_col=0)
-        self.engine = TradingEngine([portfolio])
+        self.engine = TradingEngine([portfolio], reporter)
         self.split_handler = StockSplitHandler(path / 'splits.csv', security)
         self.importer = CsvImporter()
 
@@ -104,6 +105,8 @@ class Simulator:
                 new_price = chain.get_price(contract)
                 try:
                     self.engine.buy_contract(self.portfolio, contract, new_price)
+                    if self.reporter:
+                        self.reporter.record(date, 'buy', contract, new_price)
                 except Exception as e:
                     print(e)
 
@@ -114,6 +117,8 @@ class Simulator:
             contract = chain.search(self._denormalize(close), delta=delta, theta=theta)
             try:
                 self.engine.sell_contract(self.portfolio, contract, contract.price)
+                if self.reporter:
+                    self.reporter.record(date, 'sell', contract, contract.price)
             except Exception as e:
                 print(e)
 

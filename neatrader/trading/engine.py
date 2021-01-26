@@ -1,8 +1,7 @@
-
-
 class TradingEngine:
-    def __init__(self, portfolios=[]):
+    def __init__(self, portfolios=[], reporter=None):
         self.portfolios = portfolios
+        self.reporter = reporter
 
     def eval(self, prices, date):
         # check if any options have expired
@@ -16,10 +15,16 @@ class TradingEngine:
                         if contract.itm(price):
                             if amt < 0:
                                 self.assign(portfolio, contract, amt)
+                                if self.reporter:
+                                    self.reporter.record(date, 'assign', contract)
                             elif amt > 0:
                                 self.exercise(portfolio, contract, amt)
+                                if self.reporter:
+                                    self.reporter.record(date, 'exercise', contract)
                         else:
                             self.expire(portfolio, contract, amt)
+                            if self.reporter:
+                                self.reporter.record(date, 'expire', contract)
 
     def expire(self, portfolio, contract, amt):
         if amt < 0:

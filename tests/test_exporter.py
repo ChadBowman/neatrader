@@ -19,9 +19,7 @@ class TestCsvExporter(unittest.TestCase):
             base = exporter.to_csv(chain2)
 
             df = pd.read_csv(join(base, 'close.csv'))
-            self.assertEqual(200909, df['date'][0])
-            self.assertEqual(366.28, df['close'][0])
-            self.assertEqual(200910, df['date'][1])
+            self.assertEqual((2, 2), df.shape)
         finally:
             shutil.rmtree(base)
 

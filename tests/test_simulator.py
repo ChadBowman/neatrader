@@ -1,39 +1,11 @@
 import unittest
 import pandas as pd
-from utils import TSLA
+from utils import TSLA, BuyAndHoldNet, AlwaysSellNet, SellOnceNet
 from neatrader.model import Portfolio, Option
 from neatrader.trading import Simulator
 from neatrader.utils import from_small_date
 from pathlib import Path
 from datetime import datetime
-
-
-class BuyAndHold:
-    def activate(self, params):
-        return (0, 0, 1, 0, 0)
-
-
-class AlwaysSell:
-    def activate(self, params):
-        return (0, 1, 0, self.delta, self.theta)
-
-
-class SellOnce:
-    def __init__(self):
-        self.sold = False
-
-    def activate(self, params):
-        if self.sold:
-            return (0, 0, 1, 0, 0)  # hold
-        else:
-            self.sold = True
-            return (0, 1, 0, self.delta, self.theta)
-
-
-class Log:
-    def activate(self, params):
-        print(params)
-        return (0, 1, 0, self.delta, self.theta)
 
 
 class TestSimulator(unittest.TestCase):
@@ -119,7 +91,7 @@ class TestSimulator(unittest.TestCase):
         training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
         sim = Simulator(TSLA, portfolio, path, training)
-        net = BuyAndHold()
+        net = BuyAndHoldNet()
 
         fitness = sim.simulate(net, datetime(2020, 7, 20), datetime(2020, 8, 22))
 
@@ -132,7 +104,7 @@ class TestSimulator(unittest.TestCase):
         training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
         sim = Simulator(TSLA, portfolio, path, training)
-        net = SellOnce()
+        net = SellOnceNet()
 
         # close on 8/21 was 2049.98
         # direction,expiration,strike,price,iv,delta,theta,vega
@@ -154,7 +126,7 @@ class TestSimulator(unittest.TestCase):
         training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
         sim = Simulator(TSLA, portfolio, path, training)
-        net = SellOnce()
+        net = SellOnceNet()
 
         # close on 8/21 was 2049.98
         # direction,expiration,strike,price,iv,delta,theta,vega
@@ -178,7 +150,7 @@ class TestSimulator(unittest.TestCase):
         portfolio = Portfolio(cash=0, securities={TSLA: 100, call: -1})
         portfolio.collateral = {TSLA: 100}
         sim = Simulator(TSLA, portfolio, path, training)
-        net = BuyAndHold()
+        net = BuyAndHoldNet()
 
         sim.simulate(net, datetime(2020, 7, 23), datetime(2020, 8, 3))
 
