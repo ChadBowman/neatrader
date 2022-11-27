@@ -1,9 +1,6 @@
 import pandas as pd
 from neatrader.utils import small_date, from_small_date
-from ta.utils import dropna
-from ta.trend import MACD
-from ta.volatility import BollingerBands
-from ta.momentum import RSIIndicator
+from talib import MACD, BBANDS, RSI
 
 
 class TrainingSetGenerator:
@@ -12,7 +9,7 @@ class TrainingSetGenerator:
 
     def generate(self):
         df = pd.read_csv(self.source_path / 'close.csv', parse_dates=['date'], date_parser=from_small_date)
-        df = dropna(df)
+        df.dropna(axis=0)
         close = df['close']
         self._macd(df, close)
         self._bollinger_bands(df, close)
@@ -37,11 +34,11 @@ class TrainingSetGenerator:
         df['macd_diff'] = macd.macd_diff()
 
     def _bollinger_bands(self, df, close):
-        bb = BollingerBands(close=close)
+        bb = BBANDS(close=close)
         df['bb_bbm'] = bb.bollinger_mavg()
         df['bb_bbh'] = bb.bollinger_hband()
         df['bb_bbl'] = bb.bollinger_lband()
 
     def _rsi(self, df, close):
-        rsi = RSIIndicator(close=close)
+        rsi = RSI(close=close)
         df['rsi'] = rsi.rsi()
