@@ -61,6 +61,11 @@ class Simulator:
         return self._calculate_fitness(close, end)
 
     def _most_recent_chain(self, date):
+        """
+        Iterates in reverse for each day until the most recent options chain is discovered
+
+        TODO: use memoization to avoid recreateing this large object
+        """
         while True:
             path = self.path / 'chains' / f"{small_date(date)}.csv"
             if path.exists():
@@ -88,7 +93,6 @@ class Simulator:
             yield row
 
     def _map_row(self, row):
-        # TODO add held option delta/theta, maybe vega?
         date = row['date']
         close = row['close']
         macd = row['macd']
@@ -115,6 +119,7 @@ class Simulator:
                     print(e)
 
     def _sell(self, date, close, delta, theta):
+        # for now, limit agent to only one short contract
         if not self.portfolio.contracts():
             chain = self._most_recent_chain(date)
             # sell a new contract

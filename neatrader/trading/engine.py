@@ -4,13 +4,19 @@ class TradingEngine:
         self.reporter = reporter
 
     def eval(self, prices, date):
-        # check if any options have expired
-        # for those that expire ITM, process assignment
-        # This method becomes computationally expensive with a large amount of prices
-        for portfolio in self.portfolios:
-            for contract, amt in portfolio.contracts().items():
+        """
+        check if any options have expired
+        for those that expire ITM, process assignment
+        This method becomes computationally expensive with a large amount of prices.
+        O(n^3) theoretically, O(1) with current implementation
+
+        prices: closing prices of underlying securities for a given date
+        date: date of evaluation
+        """
+        for portfolio in self.portfolios:  # currently only one portfolio is used at at time
+            for contract, amt in portfolio.contracts().items():  # currently an agent can only hold 1 contract at a time
                 # here security means option underlying security
-                for security, price in prices.items():
+                for security, price in prices.items():  # currently only one security:price pair is provided
                     if contract.security == security and contract.expired(date):
                         if contract.itm(price):
                             if amt < 0:
@@ -27,6 +33,7 @@ class TradingEngine:
                                 self.reporter.record(date, 'expire', contract)
 
     def expire(self, portfolio, contract, amt):
+        """expires OTM contract, returns collateral if contract is short"""
         if amt < 0:
             portfolio.collateral[contract.security] += amt * 100
         del portfolio.securities[contract]
@@ -58,12 +65,13 @@ class TradingEngine:
         self._reduce_collateral(portfolio, contract, amt)
 
     def exercise(self, portfolio, contract, amt):
+        """ exercise long option contract """
         cash = portfolio.cash
         shares = portfolio.securities.get(contract.security, 0)
 
         if contract.direction == 'call':
             if cash < contract.strike * 100 * amt:
-                raise Exception(f"not enough cash to exercise call. cash: {cash}, call: {contract}, amt: {amt}")
+                raise Exception(f"not enough cash to exercise call. cash: ${cash}, call: {contract}, amt: ${amt} (* 100)")
             # reduce cash
             portfolio.cash -= contract.strike * 100 * amt
             # add shares
@@ -82,7 +90,7 @@ class TradingEngine:
 
     def buy_contract(self, portfolio, contract, price, amt=1):
         if portfolio.cash < price * 100:
-            raise Exception(f"not enough cash to buy {contract} for ${price}. cash: {portfolio.cash}")
+            raise Exception(f"not enough cash to buy {contract} for ${price} (* 100). cash: ${portfolio.cash}")
 
         self._reduce_collateral(portfolio, contract, amt)
         portfolio.cash -= price * 100 * amt

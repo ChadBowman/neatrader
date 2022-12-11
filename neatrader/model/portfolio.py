@@ -2,9 +2,9 @@ from neatrader.model import Option, Security
 
 
 class Portfolio:
-    def __init__(self, cash=0, securities={}):
+    def __init__(self, cash=0, securities=None):
         self.cash = cash
-        self.securities = securities
+        self.securities = {} if securities is None else securities
         self.collateral = {}
 
     def __str__(self):

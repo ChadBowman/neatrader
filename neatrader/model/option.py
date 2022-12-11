@@ -12,7 +12,7 @@ class Option:
         self.direction = direction
         self.security = security
         self.strike = strike
-        # TODO probably not the best way to deal with tis
+        # TODO probably not the best way to deal with this
         if isinstance(expiration, Timestamp):
             expiration = expiration.to_pydatetime()
         self.expiration = expiration
@@ -86,10 +86,14 @@ class OptionChain:
             grouping the expirations by the price-weighted theta of out of the money options,
             excluding options that expire within five days.
             Then, find the contract with the closest delta.
+
+            O(n^3) due to _expirations_by_price_weighed_theta() being O(n^2)
+            and having to iterate on entire result.
         """
         direction = 'put' if delta < 0 else 'call'
         exp = None
         best_theta_error = 1000
+        # TODO weighted theta is ordered (i think). Use binary search!
         for expiration, agg_theta in self._expirations_by_price_weighted_theta(direction, close).items():
             theta_error = abs(agg_theta - theta)
             if theta_error < best_theta_error:
@@ -99,6 +103,8 @@ class OptionChain:
         contracts = self.chain[direction][exp]
         best = None
         best_delta_error = 2
+        # TODO although we are only working with 1 dimension of contracts,
+        # we should still be able to use binary search here too
         for strike, contract in contracts.items():
             delta_error = abs(contract.delta - delta)
             if delta_error < best_delta_error:
@@ -159,6 +165,17 @@ class OptionChain:
         return pd.DataFrame(contracts)
 
     def _expirations_by_price_weighted_theta(self, direction, close):
+        """
+        Calculates an average, price-weighted theta for each expiration (calls or puts)
+        so an expiration date can be determined (searched for) by a given theta.
+
+        Iterates through every call or put that has an expiration greater than 5 days in future.
+        For each expiration, iterates through each contract selects for OTM and present theta.
+        Returns: dict of expiration: average, price-weighted theta.
+        O(n^2) all puts or calls * each strike
+
+        TODO use memoization to avoid recomputing these values!
+        """
         if close < 1:
             raise Exception(f"denormalized closing price expected. was {close}")
         contracts = self.calls() if direction == 'call' else self.puts()

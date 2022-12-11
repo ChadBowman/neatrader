@@ -134,7 +134,7 @@ data/
 normalized/
 
 # neatrader
-neatrader-checkpoint-*
+neat-checkpoint-*
 
 # MacOS
 .DS_Store

@@ -12,7 +12,7 @@ class DateRangeFactory:
         """
         Returns a date range (start, end) that that ensures an end date
         that is a trading day with a closing price and includes duration
-        amount of calendar days in the range. The start date is not guarenteed
+        amount of calendar days in the range. The start date is not guaranteed
         to be a trading day or have a closing price.
         """
         i = round(end_target / self.training_duration * len(self.training)-1)
