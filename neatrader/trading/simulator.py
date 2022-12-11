@@ -3,7 +3,7 @@ import pandas as pd
 from neatrader.trading import TradingEngine, StockSplitHandler
 from neatrader.preprocess import CsvImporter
 from neatrader.utils import small_date
-from neatrader.math import un_min_max
+from neatrader.math import un_min_max, min_max
 from datetime import timedelta
 
 
@@ -32,7 +32,11 @@ class Simulator:
             params = self._map_row(row)
             date = params[0]
             close = params[1]
-            params = params[1::]  # shave off date
+            params = (
+                self._normalize(self.portfolio.cash),
+                self._normalize(self.portfolio.stocks()[self.security]),
+                *params[1::]  # shave off date
+            )
             try:
                 # process assignments, expirations
                 self.engine.eval({self.security: self._denormalize(close)}, date)
@@ -126,3 +130,8 @@ class Simulator:
         mn = self.scales.loc['close', 'min']
         mx = self.scales.loc['close', 'max']
         return un_min_max(x, mn, mx)
+
+    def _normalize(self, x):
+        mn = self.scales.loc['close', 'min']
+        mx = self.scales.loc['close', 'max']
+        return min_max(x, mn, mx)
