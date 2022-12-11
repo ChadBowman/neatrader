@@ -83,7 +83,10 @@ Generational performance is continually printed to the output. After every 3 gen
 
 Here are some examples:
 
-![network plot](https://github.com/ChadBowman/neatrader/tree/master/imgs/Digraph.gv.svg.png)
-![average/best fitness](https://github.com/ChadBowman/neatrader/tree/master/imgs/avg_fitness.svg)
-![speciation](https://github.com/ChadBowman/neatrader/tree/master/imgs/speciation.svg)
-![trades](https://github.com/ChadBowman/neatrader/tree/master/imgs/trades.svg)
+![network plot](https://github.com/ChadBowman/neatrader/tree/master/imgs/Digraph.gv.svg.png?raw=true)
+
+![average/best fitness](https://github.com/ChadBowman/neatrader/tree/master/imgs/avg_fitness.svg?raw=true)
+
+![speciation](https://github.com/ChadBowman/neatrader/tree/master/imgs/speciation.svg?raw=true)
+
+![trades](https://github.com/ChadBowman/neatrader/tree/master/imgs/trades.svg?raw=true)
