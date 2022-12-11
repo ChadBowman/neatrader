@@ -109,7 +109,7 @@ def run(config_file):
             # plot the network
             node_names = {
                 -1: 'cash', -2: 'shares',  -3: 'close', -4: 'macd', -5: 'macd_signal',
-                -6: 'macd_diff', -7: 'bb_bbh', -8: 'bb_bbh', -9: 'bb_bbl', -10: 'rsi',
+                -6: 'macd_diff', -7: 'bb_bbm', -8: 'bb_bbh', -9: 'bb_bbl', -10: 'rsi',
                 0: 'Buy', 1: 'Sell', 2: 'Hold', 3: 'Delta', 4: 'Theta'
             }
             vis.draw_net(config, winner, view=view, node_names=node_names)
