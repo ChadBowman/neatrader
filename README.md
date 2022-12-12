@@ -36,7 +36,7 @@ Outputs:
  - Theta (only used when opening new option to determine expiration)
 
 ## Simulation
-Each agent (12 in each population) is given 100 shares of TSLA to start and ran through a random, 90 day period from the training set. Concurrently, a completely separate dataset is used to run a cross-validation simulation. The cross-validation fitness has no impact on NEAT and is used to gauge overfitting.
+Each agent (128 in each population) is given 100 shares of TSLA to start and ran through a random, 90 day period from the training set. Concurrently, a completely separate dataset is used to run a cross-validation simulation. The cross-validation fitness has no impact on NEAT and is used to gauge overfitting.
 
 An agent can only open and close a single covered-call. A covered-call is when one sells to open an options contract using their owned shares as collateral.
 
@@ -47,7 +47,9 @@ Data was sourced using [Thomas Yeng's etrade cache](https://drive.google.com/dri
 
 ## Installation
 ### Docker
-soon
+```
+docker pull chadbowman0/neatrader:latest
+```
 
 ### Local
 First, clone `neatrader` and `neat-python`:
@@ -68,13 +70,16 @@ python3 -m pip install ~/neatrader
 ```
 
 ## Execution
+`generations per iteration` (int) is optional. Omit if you just want to see some plots and results quickly. Set to a larger number for better results.
 
 ### Docker
-soon
+```
+docker run chadbowman0/neatrader:latest <generations per iteration>
+```
 
 ### Local
 ```
-python3 -m neatrader
+python3 -m neatrader <generations per iteration>
 ```
 
 To run tests:
@@ -83,7 +88,7 @@ python3 -m nose -v --nocapture --logging-level=INFO
 ```
 
 ## Results
-Generational performance is continually printed to the output. After every 3 generations, plots are created which give visual representation to the winning network, population species, average/best fitness, and the winning agent's simulated trades for a new random, 90 day period. Unfortunately, the species and fitness graphs are not that interesting due to only having 3 generations per iteration. Increase this number if you want to see this improved and leverage other functionalities from NEAT.
+Generational performance is continually printed to the output. After every 3 (configurable) generations, plots are created which give visual representation to the winning network, population species, average/best fitness, and the winning agent's simulated trades for a new random, 90 day period. Unfortunately, the species and fitness graphs are not that interesting due to only having 3 generations per iteration. Increase this number if you want to see this improved and leverage other functionalities from NEAT.
 
 Here are some examples:
 

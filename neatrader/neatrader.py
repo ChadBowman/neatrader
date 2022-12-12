@@ -58,7 +58,7 @@ def eval_genomes(genomes, config):
         genome.cv_fitness = return_dict['validation']
 
 
-def run(config_file):
+def run(config_file, generations_per_iteration):
     try:
         config = neat.Config(
             neat.DefaultGenome,
@@ -67,7 +67,6 @@ def run(config_file):
             neat.DefaultStagnation,
             config_file
         )
-        generations_per_iteration = 3
         days_simulated = 0
         duration_ns = 0.0
 
