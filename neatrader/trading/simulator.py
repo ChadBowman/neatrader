@@ -1,10 +1,13 @@
 import numpy as np
 import pandas as pd
+import logging
 from neatrader.trading import TradingEngine, StockSplitHandler
 from neatrader.preprocess import CsvImporter
 from neatrader.utils import small_date
 from neatrader.math import un_min_max, min_max
 from datetime import timedelta
+
+log = logging.getLogger(__name__)
 
 
 class Simulator:
@@ -55,7 +58,7 @@ class Simulator:
                     elif sell > buy and sell > hold:
                         self._sell(date, close, delta, theta)
             except Exception as e:
-                print(f"Failed on {self.security}:{date}")
+                log.error(f"Failed on {self.security}:{date}")
                 raise e
 
         return self._calculate_fitness(close, end)
@@ -116,7 +119,7 @@ class Simulator:
                     if self.reporter:
                         self.reporter.record(date, 'buy', contract, new_price)
                 except Exception as e:
-                    print(e)
+                    log.error(e)
 
     def _sell(self, date, close, delta, theta):
         # for now, limit agent to only one short contract
@@ -129,7 +132,7 @@ class Simulator:
                 if self.reporter:
                     self.reporter.record(date, 'sell', contract, contract.price)
             except Exception as e:
-                print(e)
+                log.error(e)
 
     def _denormalize(self, x):
         mn = self.scales.loc['close', 'min']

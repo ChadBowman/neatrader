@@ -228,7 +228,6 @@ def plot_trades(network, simulator, daterange, training, path, reporter, view=Fa
 
     actions = reporter.to_df()
     if not actions.empty:
-        print(actions)
         for i, row in actions[actions['action'] == 'sell'].iterrows():
             plt.axvline(x=row['date'], color='g')
         for i, row in actions[actions['action'] == 'buy'].iterrows():
