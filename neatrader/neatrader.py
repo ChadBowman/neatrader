@@ -1,8 +1,10 @@
 import neat
+import math
 import pandas as pd
+import re
 import os
-from glob import glob
 import neatrader.visualize as vis
+from glob import glob
 from neatrader.model import Portfolio, Security
 from neatrader.trading import Simulator
 from neatrader.daterange import DateRangeFactory
@@ -58,7 +60,15 @@ def eval_genomes(genomes, config):
         genome.cv_fitness = return_dict['validation']
 
 
-def run(config_file, generations_per_iteration):
+def find_checkpoints():
+    return sorted(
+        glob('neat-checkpoint-*'),
+        key=lambda name: int(re.search(r"(\d+)", name).group(1)),
+        reverse=True
+    )
+
+
+def run(config_file, generations_per_iteration, iterations=math.inf):
     try:
         config = neat.Config(
             neat.DefaultGenome,
@@ -70,8 +80,9 @@ def run(config_file, generations_per_iteration):
         days_simulated = 0
         duration_ns = 0.0
 
-        while True:
-            checkpoint = sorted(glob('neat-checkpoint-*'), reverse=True)
+        i = 0
+        while i < iterations:
+            checkpoint = find_checkpoints()
             if checkpoint:
                 pop = neat.Checkpointer.restore_checkpoint(checkpoint[0])
             else:
@@ -119,7 +130,9 @@ def run(config_file, generations_per_iteration):
             sim_years = days_simulated / 365
             print(f"Simulated {days_simulated} days in {duration_min:.2f} minutes",
                   f"({sim_years / duration_min:.2f} sim years per minute)")
+            i += 1
     finally:
-        checkpoints = sorted(glob('neat-checkpoint-*'), reverse=True)
+        checkpoints = find_checkpoints()
+        # keep the most recent one
         for checkpoint in checkpoints[1:]:
             os.remove(checkpoint)
