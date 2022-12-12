@@ -1,6 +1,6 @@
 # Neatrader 💸
 
-Autonomous stock options trader powered by NEAT (Neuroevolution of Augmented Topologies)
+Autonomous stock options trader powered by NEAT (NeuroEvolution of Augmented Topologies)
 
 **This repo is no longer actively developed or maintained.** It was a way for me to experiment with my favorite machine learning algorithm and get some experience building a larger python project. I still think the underlying hypothesis is plausible in the limit of time and compute, but due to performance reasons I would rather use a modern machine learning framework, multiple neural networks for separate distinct tasks, and better high-level design.
 
@@ -64,7 +64,7 @@ python3 -m pip install --upgrade pip ~/neat-python
 
 Install `neatrader`:
 ```
-python3 -m pip install -e ~/neatrader
+python3 -m pip install ~/neatrader
 ```
 
 ## Execution
@@ -77,15 +77,24 @@ soon
 python3 -m neatrader
 ```
 
+To run tests:
+```
+python3 -m nose -v --nocapture --logging-level=INFO
+```
+
 ## Results
 Generational performance is continually printed to the output. After every 3 generations, plots are created which give visual representation to the winning network, population species, average/best fitness, and the winning agent's simulated trades for a new random, 90 day period. Unfortunately, the species and fitness graphs are not that interesting due to only having 3 generations per iteration. Increase this number if you want to see this improved and leverage other functionalities from NEAT.
 
 Here are some examples:
 
+Network
 ![network plot](https://github.com/ChadBowman/neatrader/blob/master/imgs/Digraph.gv.svg.png?raw=true)
 
-![average/best fitness](https://github.com/ChadBowman/neatrader/blob/master/imgs/avg_fitness.svg?raw=true)
+Fitness
+![average/best fitness](https://github.com/ChadBowman/neatrader/blob/master/imgs/avg_fitness.svg.png?raw=true)
 
-![speciation](https://github.com/ChadBowman/neatrader/blob/master/imgs/speciation.svg?raw=true)
+Speciation
+![speciation](https://github.com/ChadBowman/neatrader/blob/master/imgs/speciation.svg.png?raw=true)
 
-![trades](https://github.com/ChadBowman/neatrader/blob/master/imgs/trades.svg?raw=true)
+Example trades of best network
+![trades](https://github.com/ChadBowman/neatrader/blob/master/imgs/trades.svg.png?raw=true)
