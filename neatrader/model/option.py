@@ -4,6 +4,7 @@ import datetime as datetime
 from itertools import chain
 from neatrader.utils import flatten_dict, add_value, small_date
 from pandas import Timestamp
+from functools import lru_cache
 
 
 class Option:
@@ -164,6 +165,7 @@ class OptionChain:
             add_value(contracts, 'vega', contract.vega)
         return pd.DataFrame(contracts)
 
+    @lru_cache(maxsize=None)
     def _expirations_by_price_weighted_theta(self, direction, close):
         """
         Calculates an average, price-weighted theta for each expiration (calls or puts)
@@ -173,8 +175,6 @@ class OptionChain:
         For each expiration, iterates through each contract selects for OTM and present theta.
         Returns: dict of expiration: average, price-weighted theta.
         O(n^2) all puts or calls * each strike
-
-        TODO use memoization to avoid recomputing these values!
         """
         if close < 1:
             raise Exception(f"denormalized closing price expected. was {close}")

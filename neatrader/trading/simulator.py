@@ -6,6 +6,7 @@ from neatrader.preprocess import CsvImporter
 from neatrader.utils import small_date
 from neatrader.math import un_min_max, min_max
 from datetime import timedelta
+from functools import lru_cache
 
 log = logging.getLogger(__name__)
 
@@ -63,11 +64,10 @@ class Simulator:
 
         return self._calculate_fitness(close, end)
 
+    @lru_cache(maxsize=None)
     def _most_recent_chain(self, date):
         """
         Iterates in reverse for each day until the most recent options chain is discovered
-
-        TODO: use memoization to avoid recreateing this large object
         """
         while True:
             path = self.path / 'chains' / f"{small_date(date)}.csv"
@@ -119,7 +119,7 @@ class Simulator:
                     if self.reporter:
                         self.reporter.record(date, 'buy', contract, new_price)
                 except Exception as e:
-                    log.error(e)
+                    log.warn(e)
 
     def _sell(self, date, close, delta, theta):
         # for now, limit agent to only one short contract
@@ -132,7 +132,7 @@ class Simulator:
                 if self.reporter:
                     self.reporter.record(date, 'sell', contract, contract.price)
             except Exception as e:
-                log.error(e)
+                log.warn(e)
 
     def _denormalize(self, x):
         mn = self.scales.loc['close', 'min']
