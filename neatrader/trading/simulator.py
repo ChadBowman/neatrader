@@ -1,17 +1,18 @@
+import logging
 import numpy as np
 import pandas as pd
-import logging
-from neatrader.trading import TradingEngine, StockSplitHandler
-from neatrader.preprocess import CsvImporter
-from neatrader.utils import small_date
-from neatrader.math import un_min_max, min_max
 from datetime import timedelta
-from functools import lru_cache
+from neatrader.math import un_min_max, min_max
+from neatrader.preprocess import CsvImporter
+from neatrader.trading import TradingEngine, StockSplitHandler
+from neatrader.utils import small_date
 
 log = logging.getLogger(__name__)
 
 
 class Simulator:
+    chain_cache = {}
+
     def __init__(self, security, portfolio, path, training, reporter=None):
         self.security = security
         self.portfolio = portfolio
@@ -64,15 +65,19 @@ class Simulator:
 
         return self._calculate_fitness(close, end)
 
-    @lru_cache(maxsize=None)
     def _most_recent_chain(self, date):
+        chain = Simulator.chain_cache.get(date)
+        if chain is not None:
+            return chain
         """
         Iterates in reverse for each day until the most recent options chain is discovered
         """
         while True:
             path = self.path / 'chains' / f"{small_date(date)}.csv"
             if path.exists():
-                return self.importer.parse_chain(date, self.security, path)
+                chain = self.importer.parse_chain(date, self.security, path)
+                Simulator.chain_cache[date] = chain
+                return chain
             else:
                 date -= timedelta(days=1)
 

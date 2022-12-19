@@ -1,18 +1,17 @@
-import neat
 import math
+import neat
+import neatrader.visualize as vis
+import os
 import pandas as pd
 import re
-import os
-import neatrader.visualize as vis
 from glob import glob
-from neatrader.model import Portfolio, Security
-from neatrader.trading import Simulator
-from neatrader.daterange import DateRangeFactory
-from neatrader.utils import from_small_date
-from neatrader.reporter import TradeReporter
-from pathlib import Path
-from multiprocessing import Process, Manager
 from importlib import resources
+from neatrader.daterange import DateRangeFactory
+from neatrader.model import Portfolio, Security
+from neatrader.reporter import TradeReporter
+from neatrader.trading import Simulator
+from neatrader.utils import from_small_date
+from pathlib import Path
 from time import perf_counter_ns
 
 TSLA = Security('TSLA')
@@ -33,31 +32,18 @@ cv_daterange_factory = DateRangeFactory(validation)
 simulation_days = 90
 
 
-def worker(mode, simulator, net, start, end, return_dict):
-    return_dict[mode] = simulator.simulate(net, start, end)
-
-
 def eval_genomes(genomes, config):
     # all genomes should be compared against using the same date range
     t_start, t_end = training_daterange_factory.random_date_range(simulation_days)
     c_start, c_end = cv_daterange_factory.random_date_range(simulation_days)
-    return_dict = Manager().dict()
 
     for genome_id, genome in genomes:
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
-        t_sim = Simulator(TSLA, portfolio, path, training)
-        c_sim = Simulator(TSLA, portfolio, path, validation)
+        training_sim = Simulator(TSLA, portfolio, path, training)
 
-        train_p = Process(target=worker, args=('training', t_sim, net, t_start, t_end, return_dict))
-        validation_p = Process(target=worker, args=('validation', c_sim, net, c_start, c_end, return_dict))
-        train_p.start()
-        validation_p.start()
-        train_p.join()
-        validation_p.join()
-
-        genome.fitness = return_dict['training']
-        genome.cv_fitness = return_dict['validation']
+        genome.fitness = training_sim.simulate(net, t_start, t_end)
+        genome.cv_fitness = 0  # TODO evaluate in a different place? Once per generation?
 
 
 def find_checkpoints():
@@ -69,6 +55,7 @@ def find_checkpoints():
 
 
 def run(config_file, generations_per_iteration, iterations=math.inf):
+    print(f"running with {generations_per_iteration} generations per iteration for {iterations} iterations")
     try:
         config = neat.Config(
             neat.DefaultGenome,

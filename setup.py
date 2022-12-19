@@ -6,7 +6,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name="neatrader",
-    version="0.1.1",
+    version="0.1.2",
     author="chad Bowman",
     author_email="chad.bowman0+github@gmail.com",
     description="Options trading experiment using NEAT",
