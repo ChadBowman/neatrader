@@ -1,7 +1,7 @@
 import unittest
-from neatrader.trading import TradingEngine
-from neatrader.model import Portfolio, Option, Security
 from datetime import datetime
+from neatrader.model import Portfolio, Option, Security
+from neatrader.trading import TradingEngine
 from utils import TSLA
 
 
@@ -151,7 +151,7 @@ class TestTradingEngine(unittest.TestCase):
 
         self.assertEqual(1000 + 500 + 50000, port.cash)
         self.assertEqual(0, port.securities[TSLA])
-        self.assertEqual(0, port.contracts()[call])
+        self.assertIsNone(port.contracts().get(call))
 
     def test_exercise_call(self):
         call = Option('call', TSLA, 500, datetime(2020, 12, 28))
@@ -182,3 +182,17 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(2000 - 1000 + 50000, port.cash)
         self.assertEqual(0, port.securities.get(TSLA, 0))
         self.assertEqual(0, port.securities[put])
+
+    def test_buy_shares(self):
+        port = Portfolio(1000, {})
+        te = TradingEngine([port])
+
+        te.buy_shares(port, TSLA, price=420, amt=2)
+
+        self.assertEqual(2, port.securities[TSLA])
+        self.assertEqual(1000 - (420 * 2), port.cash)
+
+    def test_buy_shares_not_enough_cash(self):
+        port = Portfolio(1000, {})
+        te = TradingEngine([port])
+        self.assertRaises(Exception, te.buy_shares, port, TSLA, price=420, amt=3)

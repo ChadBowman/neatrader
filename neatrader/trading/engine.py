@@ -21,6 +21,7 @@ class TradingEngine:
                         if contract.itm(price):
                             if amt < 0:
                                 self.assign(portfolio, contract, amt)
+                                #self.buy_shares(portfolio, security, price)
                                 if self.reporter:
                                     self.reporter.record(date, 'assign', contract)
                             elif amt > 0:
@@ -43,7 +44,8 @@ class TradingEngine:
         if contract.direction == 'call':
             shares = portfolio.securities.get(contract.security, 0)
             if shares < 100 * abs(amt):
-                raise Exception(f"not enough shares to assign call. shares: {shares}, call: {contract}, amt: {amt}")
+                raise Exception(f"not enough shares to assign call. ",
+                                "shares: {shares}, call: {contract}, amt: {amt}")
             # call away shares
             portfolio.securities[contract.security] = shares + (100 * amt)
             # update cash
@@ -52,7 +54,8 @@ class TradingEngine:
         if contract.direction == 'put':
             cash = portfolio.cash
             if cash < contract.strike * 100 * abs(amt):
-                raise Exception(f"not enough cash to to assign put. cash: {cash}, put: {contract}, amt: {amt}")
+                raise Exception(f"not enough cash to to assign put. ",
+                                "cash: {cash}, put: {contract}, amt: {amt}")
             # update cash
             portfolio.cash = cash - contract.strike * 100 * abs(amt)
             # put shares
@@ -71,7 +74,8 @@ class TradingEngine:
 
         if contract.direction == 'call':
             if cash < contract.strike * 100 * amt:
-                raise Exception(f"not enough cash to exercise call. cash: ${cash}, call: {contract}, amt: ${amt} (* 100)")
+                raise Exception(f"not enough cash to exercise call. ",
+                                "cash: ${cash}, call: {contract}, amt: ${amt} (* 100)")
             # reduce cash
             portfolio.cash -= contract.strike * 100 * amt
             # add shares
@@ -79,7 +83,8 @@ class TradingEngine:
 
         if contract.direction == 'put':
             if shares < 100 * amt:
-                raise Exception(f"not enough shares to exercise put. shares: {shares}, put: {contract}, amt: {amt}")
+                raise Exception(f"not enough shares to exercise put. ",
+                                "shares: {shares}, put: {contract}, amt: {amt}")
             # reduce shares
             portfolio.securities[contract.security] -= 100 * amt
             # add cash
@@ -90,11 +95,19 @@ class TradingEngine:
 
     def buy_contract(self, portfolio, contract, price, amt=1):
         if portfolio.cash < price * 100:
-            raise Exception(f"not enough cash to buy {contract} for ${price} (* 100). cash: ${portfolio.cash}")
+            raise Exception(f"not enough cash to buy {contract} for ",
+                            "${price} (* 100). cash: ${portfolio.cash}")
 
         self._reduce_collateral(portfolio, contract, amt)
         portfolio.cash -= price * 100 * amt
         portfolio.securities[contract] = portfolio.securities.get(contract, 0) + amt
+
+    def buy_shares(self, portfolio, security, price, amt):
+        if portfolio.cash < price * amt:
+            raise Exception(f"not enough cash to buy {amt} shares of {security} for ${price}. ",
+                            "cash: ${portfolio.cash}")
+        portfolio.securities[security] = portfolio.securities.get(security, 0) + amt
+        portfolio.cash -= price * amt
 
     def sell_contract(self, portfolio, contract, price, amt=1):
         previous_contracts = portfolio.securities.get(contract, 0)
@@ -106,7 +119,8 @@ class TradingEngine:
         # check for available shares
         available = ((long_contracts * 100) + underlying_held) - colateral_reserved
         if available < 100 * amt:
-            raise Exception(f"not enough shares available to sell {contract}. shares available: {available}, needed: {100 * amt}")
+            raise Exception(f"not enough shares available to sell {contract}. ",
+                            "shares available: {available}, needed: {100 * amt}")
 
         # update contracts held
         portfolio.securities[contract] = previous_contracts - amt
