@@ -1,11 +1,11 @@
 import json
-import re
-import pandas as pd
 import numpy as np
-from pathlib import Path
+import pandas as pd
+import re
 from datetime import datetime
+from neatrader.model import Security, Quote, OptionChain, CallOption, PutOption
 from neatrader.utils import from_small_date
-from neatrader.model import Security, Quote, Option, OptionChain
+from pathlib import Path
 
 
 class EtradeImporter:
@@ -54,7 +54,8 @@ class EtradeImporter:
         direction = json['optionType'].lower()
         strike = json['strikePrice']
         expiration = datetime.strptime(exp_dt, '%Y-%m-%d')
-        option = Option(direction, security, strike, expiration)
+        params = (security, strike, expiration)
+        option = CallOption(*params) if direction == "call" else PutOption(*params)
         option.delta = self._scrub_value(json['OptionGreeks']['delta'])
         option.theta = self._scrub_value(json['OptionGreeks']['theta'])
         option.vega = self._scrub_value(json['OptionGreeks']['vega'])
@@ -94,7 +95,8 @@ class CsvImporter:
             expiration = contract['expiration']
             direction = contract['direction']
             strike = contract['strike']
-            option = Option(direction, security, strike, expiration)
+            params = (security, strike, expiration)
+            option = CallOption(*params) if direction == "call" else PutOption(*params)
             option.price = contract['price']
             option.delta = contract['delta']
             option.theta = contract['theta']

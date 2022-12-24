@@ -1,12 +1,47 @@
 import unittest
-from neatrader.model import Option, Security, OptionChain, Quote
-from neatrader.preprocess import CsvImporter
 from datetime import datetime
-from utils import TSLA
+from neatrader.model import Option, CallOption, PutOption, Security, OptionChain, Quote
+from neatrader.preprocess import CsvImporter
 from pathlib import Path
+from utils import TSLA
 
 
 class TestOptionChain(unittest.TestCase):
+    def test_intrinsic(self):
+        call = CallOption(TSLA, 420, datetime(2020, 9, 4))
+        put = PutOption(TSLA, 420, datetime(2020, 9, 4))
+
+        price_underlying = 500
+        self.assertEqual(price_underlying - 420, call.intrinsic(price_underlying))
+        self.assertEqual(0, put.intrinsic(price_underlying))
+
+        price_underlying = 400
+        self.assertEqual(0, call.intrinsic(price_underlying))
+        self.assertEqual(420 - price_underlying, put.intrinsic(price_underlying))
+
+    def test_extrinsic(self):
+        call = CallOption(TSLA, 420, datetime(2020, 9, 4))
+        put = PutOption(TSLA, 420, datetime(2020, 9, 4))
+
+        price_underlying = 500
+        self.assertEqual(100 - (price_underlying - 420), call.extrinsic(100, price_underlying))
+        self.assertEqual(10, put.extrinsic(10, price_underlying))
+
+        price_underlying = 400
+        self.assertEqual(10, call.extrinsic(10, price_underlying))
+        self.assertEqual(40 - (420 - price_underlying), put.extrinsic(40, price_underlying))
+
+    def test__expirations_by_price_weighted_theta(self):
+        importer = CsvImporter()
+        chain = next(importer.chains(Path('tests/test_data/TSLA')))
+        self.assertEqual('TSLA20200903', str(chain))
+
+        expirations = chain._expirations_by_price_weighted_theta("call", 372.72)
+
+        most_recent = sorted(expirations.items(), key=lambda item: item[1])[0]
+        self.assertEqual(datetime(2020, 9, 4), most_recent[0])
+        self.assertAlmostEqual(-5.38725256, most_recent[1], places=8)
+
     def test_search(self):
         importer = CsvImporter()
         chain = next(importer.chains(Path('tests/test_data/TSLA')))
@@ -17,6 +52,16 @@ class TestOptionChain(unittest.TestCase):
         # call,200918,420.0,32.45,1.155,0.4955,-1.2863,0.3296
         self.assertEqual(datetime(2020, 9, 18), result.expiration)
         self.assertEqual(420, result.strike)
+
+    def test_search_using_zeros(self):
+        importer = CsvImporter()
+        chain = next(importer.chains(Path('tests/test_data/TSLA')))
+        self.assertEqual('TSLA20200903', str(chain))
+
+        result = chain.search(372.72, theta=0, delta=0)
+
+        self.assertEqual(datetime(2022, 9, 16), result.expiration)
+        self.assertEqual(1000, result.strike)
 
     def test_otm(self):
         security = Security('TSLA')
@@ -64,8 +109,8 @@ class TestOptionChain(unittest.TestCase):
 
     def test_option_itm(self):
         security = Security('TSLA')
-        call = Option('call', security, 420, datetime(2020, 12, 4))
-        put = Option('put', security, 420, datetime(2020, 12, 4))
+        call = CallOption(security, 420, datetime(2020, 12, 4))
+        put = PutOption(security, 420, datetime(2020, 12, 4))
         self.assertTrue(call.itm(500))
         self.assertFalse(call.itm(400))
         self.assertTrue(put.itm(400))

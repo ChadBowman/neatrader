@@ -1,10 +1,15 @@
-import datetime as datetime
+import logging
 import math
 import pandas as pd
+from dataclasses import dataclass
+from datetime import datetime
 from functools import lru_cache
 from itertools import chain
+from neatrader.model import Security
 from neatrader.utils import flatten_dict, add_value, small_date
 from pandas import Timestamp
+
+log = logging.getLogger(__name__)
 
 
 class Option:
@@ -32,7 +37,6 @@ class Option:
                 self.security == other.security,
                 self.strike == other.strike,
                 self.expiration == other.expiration
-                # TODO might need to include price here too
             ))
 
     def __ne__(self, other):
@@ -41,15 +45,43 @@ class Option:
     def __hash__(self):
         return hash((self.direction, self.security, self.strike, self.expiration))
 
-    def expired(self, datetime):
-        return self.expiration.date() <= datetime.date()
+    def expired(self, now):
+        return self.expiration.date() <= now.date()
 
-    def itm(self, price):
-        if self.direction == 'call' and price > self.strike:
-            return True
-        if self.direction == 'put' and price < self.strike:
-            return True
-        return False
+    def extrinsic(self, price, price_underlying):
+        return price - self.intrinsic(price_underlying)
+
+
+@dataclass()
+class CallOption(Option):
+    security: Security
+    strike: int
+    expiration: datetime
+
+    def __post_init__(self):
+        self.direction = "call"
+
+    def itm(self, price_underlying):
+        return price_underlying > self.strike
+
+    def intrinsic(self, price_underlying):
+        return max(price_underlying - self.strike, 0)
+
+
+@dataclass()
+class PutOption(Option):
+    security: Security
+    strike: int
+    expiration: datetime
+
+    def __post_init__(self):
+        self.direction = "put"
+
+    def itm(self, price_underlying):
+        return price_underlying < self.strike
+
+    def intrinsic(self, price_underlying):
+        return max(self.strike - price_underlying, 0)
 
 
 class OptionChain:
@@ -80,41 +112,71 @@ class OptionChain:
         self.chain[option.direction][option.expiration] = exp_dict
 
     def get_option(self, direction, expiration, strike):
-        return self.chain[direction][expiration][strike]
+        result = None
+        callput = self.chain.get(direction)
+        if callput:
+            exp = callput.get(expiration)
+            if exp:
+                result = exp.get(strike)
+        if result is None:
+            log.warn(f"{direction}, {expiration}, {strike} option not found in chain {self}")
+        return result
 
     def search(self, close, *, theta, delta):
-        """ First finds the expiration with the closest theta by
-            grouping the expirations by the price-weighted theta of out of the money options,
-            excluding options that expire within five days.
-            Then, find the contract with the closest delta.
+        """ Search for an option contract for a given theta and delta.
+
+            First finds the expiration matching the closest theta,
+            then finds the contract with the closest delta.
 
             O(n^3) due to _expirations_by_price_weighed_theta() being O(n^2)
             and having to iterate on entire result.
         """
-        direction = 'put' if delta < 0 else 'call'
+        direction = "call"  # 'put' if delta < 0 else 'call' TODO support for puts
         exp = None
-        best_theta_error = 1000
-        # TODO weighted theta is ordered (i think). Use binary search!
-        for expiration, agg_theta in self._expirations_by_price_weighted_theta(direction, close).items():
-            theta_error = abs(agg_theta - theta)
+        best_theta_error = math.inf
+        agg_thetas = self._expirations_by_price_weighted_theta(direction, close)
+        # agg_thetas should already be sorted and we could use binary search
+        # but this wont be more than about 20 elements
+        for expiration, agg_theta in agg_thetas.items():
+            theta_error = abs(agg_theta - theta) ** 2
             if theta_error < best_theta_error:
                 exp = expiration
                 best_theta_error = theta_error
 
-        contracts = self.chain[direction][exp]
-        best = None
-        best_delta_error = 2
-        # TODO although we are only working with 1 dimension of contracts,
-        # we should still be able to use binary search here too
-        for strike, contract in contracts.items():
-            delta_error = abs(contract.delta - delta)
-            if delta_error < best_delta_error:
-                best = contract
-                best_delta_error = delta_error
-        return best
+        if exp is None:
+            raise Exception(f"No expiration could be chosen for option search, ",
+                            "theta: {theta}, agg_thetas: {agg_thetas}")
 
+        contracts = self.chain[direction][exp]
+        # These should be nearly sorted already, but just in case
+        contracts = sorted(contracts.values(), key=lambda contract: contract.delta, reverse=True)
+        i, j = 0, len(contracts) - 1
+        while i <= j:
+            mid = i + (j-i) // 2
+            prospect_delta = contracts[mid].delta
+            mid_error = abs(delta - prospect_delta) ** 2
+            left_error = abs(delta - contracts[max(mid-1, 0)].delta) ** 2
+            right_error = abs(delta - contracts[min(mid+1, len(contracts)-1)].delta) ** 2
+            if i == j:
+                log.info((delta, prospect_delta, mid_error, left_error, right_error))
+
+            if mid_error <= left_error and mid_error <= right_error:
+                # closest delta found, return contract
+                return contracts[mid]
+
+            if delta > prospect_delta:
+                j = mid - 1
+            else:
+                i = mid + 1
+        raise Exception(f"Unable to find contract close to delta: {delta}, ",
+                        "contracts: {contracts}")
+
+    @lru_cache(maxsize=None)
     def get_price(self, contract):
-        return self.get_option(contract.direction, contract.expiration, contract.strike).price
+        option = self.get_option(contract.direction, contract.expiration, contract.strike)
+        if option is None:
+            log.warn(f"could not locate {contract} to provide a price")
+        return option.price if option else 0
 
     def calls(self):
         return self.chain['call']
@@ -140,6 +202,7 @@ class OptionChain:
             'put': otm_puts
         }
 
+    @lru_cache(maxsize=None)
     def iv(self, expiration):
         """ calculates the price-weighted implied volatility
             of all out of the money contracts with the same expiration.
@@ -171,26 +234,20 @@ class OptionChain:
         Calculates an average, price-weighted theta for each expiration (calls or puts)
         so an expiration date can be determined (searched for) by a given theta.
 
-        Iterates through every call or put that has an expiration greater than 5 days in future.
         For each expiration, iterates through each contract selects for OTM and present theta.
+        Only out-of-the-money contracts are used since they are 100% extrinsic value.
         Returns: dict of expiration: average, price-weighted theta.
         O(n^2) all puts or calls * each strike
         """
-        if close < 1:
-            raise Exception(f"denormalized closing price expected. was {close}")
         contracts = self.calls() if direction == 'call' else self.puts()
         result = {}
-        five_days_future = self.date + datetime.timedelta(days=5)
         for expiration, strike_list in contracts.items():
-            if expiration > five_days_future:
-                weighted_theta_agg = 0
-                price_total = 0
-                for strike, contract in strike_list.items():
-                    if not contract.itm(close) and not math.isnan(contract.theta):
-                        weighted_theta_agg += contract.price * contract.theta
-                        price_total += contract.price
-                if price_total == 0:
-                    result[expiration] = 100  # undefined
-                else:
-                    result[expiration] = weighted_theta_agg / price_total
+            weighted_theta_agg = 0
+            price_total = 0
+            for strike, contract in strike_list.items():
+                if not contract.itm(close) and not math.isnan(contract.theta):
+                    weighted_theta_agg += contract.price * contract.theta
+                    price_total += contract.price
+            if price_total != 0:
+                result[expiration] = weighted_theta_agg / price_total
         return result
