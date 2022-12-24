@@ -1,13 +1,8 @@
-from __future__ import print_function
-
 import copy
-import warnings
 import graphviz
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-from neatrader.utils import from_small_date
-from neatrader.math import un_min_max
+import warnings
 
 
 def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg'):
@@ -146,7 +141,8 @@ def draw_net(config, genome, view=False, filename=None, node_names=None,
         'shape': 'circle',
         'fontsize': '9',
         'height': '0.2',
-        'width': '0.2'}
+        'width': '0.2'
+    }
 
     dot = graphviz.Digraph(format=fmt, node_attr=node_attrs)
 
@@ -193,8 +189,6 @@ def draw_net(config, genome, view=False, filename=None, node_names=None,
 
     for cg in genome.connections.values():
         if cg.enabled or show_disabled:
-            #if cg.input not in used_nodes or cg.output not in used_nodes:
-            #    continue
             input, output = cg.key
             a = node_names.get(input, str(input))
             b = node_names.get(output, str(output))
@@ -213,31 +207,37 @@ def plot_trades(network, simulator, daterange, training, path, reporter, view=Fa
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
         return
 
-    scales = pd.read_csv(path / 'scales.csv', index_col=0)
-
-    plt.title("Trades")
+    plt.title("Trade Simulation")
     plt.ylabel("Price")
     plt.xlabel("Time")
 
+    # plot price vs time
     start, end = daterange
-    mask = (training['date'] >= start) & (training['date'] <= end)
+    mask = (training["date"] >= start) & (training["date"] <= end)
     df = training.loc[mask]
-    plt.plot(df['date'], un_min_max(df['close'], scales['min']['close'], scales['max']['close']))
+    plt.plot(df["date"], df["close"], zorder=0)
 
+    # run simulation
     simulator.simulate(network, start, end)
+
+    # plot trades
+    df.date.astype("datetime64[ns]")
 
     actions = reporter.to_df()
     if not actions.empty:
-        for i, row in actions[actions['action'] == 'sell'].iterrows():
-            plt.axvline(x=row['date'], color='g')
-        for i, row in actions[actions['action'] == 'buy'].iterrows():
-            plt.axvline(x=row['date'], color='b')
-        for i, row in actions[actions['action'] == 'assign'].iterrows():
-            plt.axvline(x=row['date'], color='r')
-        for i, row in actions[actions['action'] == 'exercise'].iterrows():
-            plt.axvline(x=row['date'], color='c')
-        for i, row in actions[actions['action'] == 'expire'].iterrows():
-            plt.axvline(x=row['date'], color='k')
+        actions = actions.merge(df, on="date")
+        sells = actions[actions["action"] == "sell"]
+        buys = actions[actions["action"] == "buy"]
+        assignments = actions[actions["action"] == "assign"]
+        excercises = actions[actions["action"] == "exercise"]
+        expirations = actions[actions["action"] == "expire"]
+        plt.scatter(sells["date"], sells["close"], c="green", label="Sell", zorder=1)
+        plt.scatter(buys["date"], buys["close"], c="blue", label="Buy", zorder=2)
+        plt.scatter(assignments["date"], assignments["close"], c="red", label="Assign", zorder=3)
+        plt.scatter(excercises["date"], excercises["close"], c="cyan", label="Excercise", zorder=4)
+        plt.scatter(expirations["date"], expirations["close"], c="black", label="Expire", zorder=5)
+        plt.legend()
+        plt.xticks(rotation=20)
 
     plt.savefig(filename)
 
