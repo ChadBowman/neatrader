@@ -7,7 +7,7 @@ from utils import TSLA
 
 class TestTradingEngine(unittest.TestCase):
     def test_assign_call(self):
-        call = Option('call', TSLA, 500, datetime(2020, 12, 28))
+        call = Option(Option.CALL, TSLA, 500, datetime(2020, 12, 28))
         secs = {TSLA: 100, call: -1}
         port = Portfolio(420, secs)
         port.collateral[TSLA] = 100
@@ -21,7 +21,7 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(0, port.collateral[TSLA])
 
     def test_assign_put(self):
-        put = Option('put', TSLA, 500, datetime(2020, 12, 28))
+        put = Option(Option.PUT, TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(70000, {TSLA: 12, put: -1})
         port.collateral[TSLA] = 100
         te = TradingEngine()
@@ -34,8 +34,8 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(0, port.collateral[TSLA])
 
     def test_eval(self):
-        call = Option('call', TSLA, 400, datetime(2020, 12, 28))
-        put = Option('put', TSLA, 420, datetime(2020, 12, 28))
+        call = Option(Option.CALL, TSLA, 400, datetime(2020, 12, 28))
+        put = Option(Option.PUT, TSLA, 420, datetime(2020, 12, 28))
         port = Portfolio(50000, {TSLA: 200, call: -2, put: -2})
         te = TradingEngine([port])
 
@@ -45,8 +45,8 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(200, port.securities[TSLA])
 
     def test_eval_no_security(self):
-        call = Option('call', TSLA, 500, datetime(2020, 12, 28))
-        put = Option('put', TSLA, 500, datetime(2020, 12, 28))
+        call = Option(Option.CALL, TSLA, 500, datetime(2020, 12, 28))
+        put = Option(Option.PUT, TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(50000, {TSLA: 100, call: 1, put: 1})
         te = TradingEngine([port])
 
@@ -56,8 +56,8 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(100, port.securities[TSLA])
 
     def test_eval_not_expired(self):
-        call = Option('call', TSLA, 500, datetime(2020, 12, 28))
-        put = Option('put', TSLA, 500, datetime(2020, 12, 28))
+        call = Option(Option.CALL, TSLA, 500, datetime(2020, 12, 28))
+        put = Option(Option.PUT, TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(50000, {TSLA: 100, call: 1, put: 1})
         te = TradingEngine([port])
 
@@ -69,7 +69,7 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(1, port.securities[put])
 
     def test_buy_contract(self):
-        call = Option('call', TSLA, 500, datetime(2020, 12, 28))
+        call = Option(Option.CALL, TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(1000, {})
         te = TradingEngine([port])
 
@@ -79,7 +79,7 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(1, port.securities[call])
 
     def test_sell_contract(self):
-        call = Option('call', TSLA, 500, datetime(2020, 12, 28))
+        call = Option(Option.CALL, TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(0, {TSLA: 100})
         te = TradingEngine([port])
 
@@ -89,7 +89,7 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(-1, port.securities[call])
 
     def test_sell_too_many_contracts(self):
-        call = Option('call', TSLA, 500, datetime(2020, 12, 28))
+        call = Option(Option.CALL, TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(0, {TSLA: 100})
         te = TradingEngine([port])
 
@@ -97,7 +97,7 @@ class TestTradingEngine(unittest.TestCase):
         self.assertRaises(Exception, te.sell_contract, port, call, 10)
 
     def test_release_collateral(self):
-        call = Option('call', TSLA, 500, datetime(2020, 12, 28))
+        call = Option(Option.CALL, TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(50000, {TSLA: 100})
         te = TradingEngine([port])
 
@@ -127,7 +127,7 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(100, port.collateral[TSLA])
 
     def test_option_expiration(self):
-        call = Option('call', TSLA, 500, datetime(2020, 12, 28))
+        call = Option(Option.CALL, TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(0, {TSLA: 100})
         te = TradingEngine([port])
 
@@ -138,14 +138,14 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(0, port.collateral[TSLA])
 
     def test_expire_and_assign(self):
-        call = Option('call', TSLA, 500, datetime(2020, 12, 28))
+        call = Option(Option.CALL, TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(0, {TSLA: 100})
         te = TradingEngine([port])
 
         te.sell_contract(port, call, 10)
         te.eval({TSLA: 400}, datetime(2020, 12, 28))
 
-        call = Option('call', TSLA, 500, datetime(2021, 1, 15))
+        call = Option(Option.CALL, TSLA, 500, datetime(2021, 1, 15))
         te.sell_contract(port, call, 5)
         te.eval({TSLA: 600}, datetime(2021, 1, 15))
 
@@ -154,7 +154,7 @@ class TestTradingEngine(unittest.TestCase):
         self.assertIsNone(port.contracts().get(call))
 
     def test_exercise_call(self):
-        call = Option('call', TSLA, 500, datetime(2020, 12, 28))
+        call = Option(Option.CALL, TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(51000, {})
         te = TradingEngine([port])
 
@@ -169,7 +169,7 @@ class TestTradingEngine(unittest.TestCase):
         self.assertEqual(0, port.securities[call])
 
     def test_exercise_put(self):
-        put = Option('put', TSLA, 500, datetime(2020, 12, 28))
+        put = Option(Option.PUT, TSLA, 500, datetime(2020, 12, 28))
         port = Portfolio(2000, {TSLA: 100})
         te = TradingEngine([port])
 

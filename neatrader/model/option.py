@@ -1,11 +1,8 @@
 import logging
 import math
 import pandas as pd
-from dataclasses import dataclass
-from datetime import datetime
 from functools import lru_cache
 from itertools import chain
-from neatrader.model import Security
 from neatrader.utils import flatten_dict, add_value, small_date
 from pandas import Timestamp
 
@@ -14,6 +11,9 @@ log = logging.getLogger(__name__)
 
 class Option:
     """ A stock option """
+    CALL = "call"
+    PUT = "put"
+
     def __init__(self, direction, security, strike, expiration):
         self.direction = direction
         self.security = security
@@ -48,40 +48,22 @@ class Option:
     def expired(self, now):
         return self.expiration.date() <= now.date()
 
-    def extrinsic(self, price, price_underlying):
-        return price - self.intrinsic(price_underlying)
+    def intrinsic(self, price_underlying):
+        if self.direction == Option.CALL:
+            return max(price_underlying - self.strike, 0)
+        else:
+            return max(self.strike - price_underlying, 0)
 
-
-@dataclass()
-class CallOption(Option):
-    security: Security
-    strike: int
-    expiration: datetime
-
-    def __post_init__(self):
-        self.direction = "call"
+    def extrinsic(self, price_underlying):
+        if self.price is None:
+            raise Exception("cannot calculate extrinsic value for option: {self}, missing price")
+        return self.price - self.intrinsic(price_underlying)
 
     def itm(self, price_underlying):
-        return price_underlying > self.strike
-
-    def intrinsic(self, price_underlying):
-        return max(price_underlying - self.strike, 0)
-
-
-@dataclass()
-class PutOption(Option):
-    security: Security
-    strike: int
-    expiration: datetime
-
-    def __post_init__(self):
-        self.direction = "put"
-
-    def itm(self, price_underlying):
-        return price_underlying < self.strike
-
-    def intrinsic(self, price_underlying):
-        return max(self.strike - price_underlying, 0)
+        if self.direction == Option.CALL:
+            return price_underlying > self.strike
+        else:
+            return price_underlying < self.strike
 
 
 class OptionChain:
@@ -157,8 +139,6 @@ class OptionChain:
             mid_error = abs(delta - prospect_delta) ** 2
             left_error = abs(delta - contracts[max(mid-1, 0)].delta) ** 2
             right_error = abs(delta - contracts[min(mid+1, len(contracts)-1)].delta) ** 2
-            if i == j:
-                log.info((delta, prospect_delta, mid_error, left_error, right_error))
 
             if mid_error <= left_error and mid_error <= right_error:
                 # closest delta found, return contract

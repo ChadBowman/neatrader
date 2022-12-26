@@ -46,7 +46,7 @@ class TestSimulator(unittest.TestCase):
     def test_close_short_call(self):
         path = Path('tests/test_data/normalized/TSLA')
         training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
-        call = Option('call', TSLA, 420, datetime(2020, 7, 17))
+        call = Option(Option.CALL, TSLA, 420, datetime(2020, 7, 17))
         portfolio = Portfolio(cash=133535, securities={call: -1})
 
         sim = Simulator(TSLA, portfolio, path, training)
@@ -68,7 +68,7 @@ class TestSimulator(unittest.TestCase):
             0.3087888191319731   # should target 8/21 expiration
         )
 
-        call = Option('call', TSLA, 2000, datetime(2020, 8, 21))
+        call = Option(Option.CALL, TSLA, 2000, datetime(2020, 8, 21))
         self.assertEqual(-1, portfolio.securities[call])
         self.assertEqual(100, portfolio.securities[TSLA])
         self.assertEqual(100, portfolio.collateral[TSLA])
@@ -77,7 +77,7 @@ class TestSimulator(unittest.TestCase):
     def test_calculate_fitness(self):
         path = Path('tests/test_data/normalized/TSLA')
         training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
-        call = Option('call', TSLA, 420, datetime(2020, 9, 11))
+        call = Option(Option.CALL, TSLA, 420, datetime(2020, 9, 11))
         portfolio = Portfolio(cash=10, securities={TSLA: 100, call: -1})
 
         sim = Simulator(TSLA, portfolio, path, training)
@@ -146,7 +146,7 @@ class TestSimulator(unittest.TestCase):
     def test_expire_without_close_on_expiration(self):
         path = Path('tests/test_data/normalized/TSLA')
         training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
-        call = Option('call', TSLA, 2800, datetime(2020, 7, 24))
+        call = Option(Option.CALL, TSLA, 2800, datetime(2020, 7, 24))
         portfolio = Portfolio(cash=0, securities={TSLA: 100, call: -1})
         portfolio.collateral = {TSLA: 100}
         sim = Simulator(TSLA, portfolio, path, training)

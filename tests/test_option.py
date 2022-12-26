@@ -1,6 +1,6 @@
 import unittest
 from datetime import datetime
-from neatrader.model import Option, CallOption, PutOption, Security, OptionChain, Quote
+from neatrader.model import Option, Security, OptionChain, Quote
 from neatrader.preprocess import CsvImporter
 from pathlib import Path
 from utils import TSLA
@@ -8,8 +8,8 @@ from utils import TSLA
 
 class TestOptionChain(unittest.TestCase):
     def test_intrinsic(self):
-        call = CallOption(TSLA, 420, datetime(2020, 9, 4))
-        put = PutOption(TSLA, 420, datetime(2020, 9, 4))
+        call = Option(Option.CALL, TSLA, 420, datetime(2020, 9, 4))
+        put = Option(Option.PUT, TSLA, 420, datetime(2020, 9, 4))
 
         price_underlying = 500
         self.assertEqual(price_underlying - 420, call.intrinsic(price_underlying))
@@ -20,16 +20,20 @@ class TestOptionChain(unittest.TestCase):
         self.assertEqual(420 - price_underlying, put.intrinsic(price_underlying))
 
     def test_extrinsic(self):
-        call = CallOption(TSLA, 420, datetime(2020, 9, 4))
-        put = PutOption(TSLA, 420, datetime(2020, 9, 4))
+        call = Option(Option.CALL, TSLA, 420, datetime(2020, 9, 4))
+        put = Option(Option.PUT, TSLA, 420, datetime(2020, 9, 4))
 
         price_underlying = 500
-        self.assertEqual(100 - (price_underlying - 420), call.extrinsic(100, price_underlying))
-        self.assertEqual(10, put.extrinsic(10, price_underlying))
+        call.price = 100
+        put.price = 10
+        self.assertEqual(call.price - (price_underlying - call.strike), call.extrinsic(price_underlying))
+        self.assertEqual(put.price, put.extrinsic(price_underlying))
 
         price_underlying = 400
-        self.assertEqual(10, call.extrinsic(10, price_underlying))
-        self.assertEqual(40 - (420 - price_underlying), put.extrinsic(40, price_underlying))
+        call.price = 10
+        put.price = 40
+        self.assertEqual(call.price, call.extrinsic(price_underlying))
+        self.assertEqual(put.price - (put.strike - price_underlying), put.extrinsic(price_underlying))
 
     def test__expirations_by_price_weighted_theta(self):
         importer = CsvImporter()
@@ -109,15 +113,15 @@ class TestOptionChain(unittest.TestCase):
 
     def test_option_itm(self):
         security = Security('TSLA')
-        call = CallOption(security, 420, datetime(2020, 12, 4))
-        put = PutOption(security, 420, datetime(2020, 12, 4))
+        call = Option(Option.CALL, security, 420, datetime(2020, 12, 4))
+        put = Option(Option.PUT, security, 420, datetime(2020, 12, 4))
         self.assertTrue(call.itm(500))
         self.assertFalse(call.itm(400))
         self.assertTrue(put.itm(400))
         self.assertFalse(put.itm(500))
 
     def test_get_price(self):
-        call = Option('call', TSLA, 420, datetime(2020, 12, 4))
+        call = Option(Option.CALL, TSLA, 420, datetime(2020, 12, 4))
         call.price = 420
         chain = OptionChain(TSLA, datetime.now())
         chain.add_option(call)
