@@ -107,17 +107,17 @@ class TestSimulator(unittest.TestCase):
         net = SellOnceNet()
 
         # close on 8/21 was 2049.98, target ITM
-        net.theta = -3.2   # target 8/21 expiration
-        net.delta = 0.345  # target 2000 strike
+        net.theta = -3.2    # target 8/21 expiration
+        net.delta = 0.9486  # target 1000 strike
 
         fitness = sim.simulate(net, datetime(2020, 7, 19), datetime(2020, 8, 22))
 
         # premium + assigned cash - buy-and-hold value
-        expected = (108.75 * 100) + (2000 * 100) - (2049.98 * 100)
+        expected = (652.11 * 100) + (1000 * 100) - (2049.98 * 100)
         self.assertAlmostEqual(expected, fitness, places=2)
         self.assertEqual(0, portfolio.securities[TSLA])
         self.assertEqual(0, portfolio.collateral[TSLA])
-        self.assertEqual(10875 + 200000, portfolio.cash)
+        self.assertEqual(65_211 + 100_000, portfolio.cash)
 
     def test_sell_and_expire(self):
         path = Path('tests/test_data/TSLA')
@@ -151,3 +151,18 @@ class TestSimulator(unittest.TestCase):
         sim.simulate(net, datetime(2020, 7, 23), datetime(2020, 8, 3))
 
         self.assertEqual(0, portfolio.securities.get(call, 0))
+
+    def test_buy_shares_when_all_cash(self):
+        path = Path('tests/test_data/TSLA')
+        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        portfolio = Portfolio(cash=1_000_000, securities={})
+
+        sim = Simulator(TSLA, portfolio, path, training)
+        net = AlwaysSellNet()
+        net.delta = 0.1
+        net.theta = -3
+
+        sim.simulate(net, datetime(2020, 7, 23), datetime(2020, 8, 3))
+
+        self.assertAlmostEqual(85_7709, portfolio.cash, places=2)
+        self.assertEqual(100, portfolio.securities[TSLA])

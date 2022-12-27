@@ -26,3 +26,9 @@ class Portfolio:
         return {
             security: amt - self.collateral.get(security, 0) for security, amt in self.stocks().items()
         }
+
+    def has_securities(self):
+        for security, amt in self.securities.items():
+            if amt != 0:
+                return True
+        return False

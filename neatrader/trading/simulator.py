@@ -1,6 +1,5 @@
 import logging
 import numpy as np
-import pandas as pd
 from datetime import timedelta
 from neatrader.preprocess import CsvImporter
 from neatrader.trading import TradingEngine, StockSplitHandler
@@ -57,6 +56,10 @@ class Simulator:
                     # Sell
                     elif sell > buy and sell > hold:
                         self._sell(date, close, delta, theta)
+
+                    # Buy shares if 100% cash and can afford 100 shares
+                    self._attempt_to_buy_shares(date, close, 100)
+
             except Exception as e:
                 log.error(f"Failed on {self.security}:{date}")
                 raise e
@@ -71,7 +74,7 @@ class Simulator:
         Iterates in reverse for each day until the most recent options chain is discovered
         """
         while True:
-            path = self.path / 'chains' / f"{small_date(date)}.csv"
+            path = self.path / "chains" / f"{small_date(date)}.csv"
             if path.exists():
                 chain = self.importer.parse_chain(date, self.security, path)
                 Simulator.chain_cache[date] = chain
@@ -95,20 +98,20 @@ class Simulator:
         return fitness
 
     def _days_in_range(self, start, end):
-        mask = (self.training['date'] > start) & (self.training['date'] <= end)
+        mask = (self.training["date"] > start) & (self.training["date"] <= end)
         for idx, row in self.training.loc[mask].iterrows():
             yield row
 
     def _map_row(self, row):
-        date = row['date']
-        close = row['close']
-        macd = row['macd']
-        macd_signal = row['macd_signal']
-        macd_diff = row['macd_diff']
-        bb_bbm = row['bb_bbm']
-        bb_bbh = row['bb_bbh']
-        bb_bbl = row['bb_bbl']
-        rsi = row['rsi']
+        date = row["date"]
+        close = row["close"]
+        macd = row["macd"]
+        macd_signal = row["macd_signal"]
+        macd_diff = row["macd_diff"]
+        bb_bbm = row["bb_bbm"]
+        bb_bbh = row["bb_bbh"]
+        bb_bbl = row["bb_bbl"]
+        rsi = row["rsi"]
         return (date, close, macd, macd_signal, macd_diff, bb_bbm, bb_bbh, bb_bbl, rsi)
 
     def _buy(self, date):
@@ -121,7 +124,7 @@ class Simulator:
                 try:
                     self.engine.buy_contract(self.portfolio, contract, new_price)
                     if self.reporter:
-                        self.reporter.record(date, 'buy', contract, new_price)
+                        self.reporter.record(date, "buy", contract, 1, new_price)
                 except Exception as e:
                     log.warn(e)
 
@@ -134,7 +137,7 @@ class Simulator:
             try:
                 self.engine.sell_contract(self.portfolio, contract, contract.price)
                 if self.reporter:
-                    self.reporter.record(date, 'sell', contract, contract.price)
+                    self.reporter.record(date, "sell", contract, -1, contract.price)
             except Exception as e:
                 log.warn(e)
 
@@ -143,3 +146,11 @@ class Simulator:
         for contract, _ in self.portfolio.contracts().items():
             value += self._most_recent_chain(date).get_price(contract)
         return value
+
+    def _attempt_to_buy_shares(self, date, close, num_shares):
+        if not self.portfolio.has_securities():
+            num_shares_afford = num_shares % int(self.portfolio.cash / close)
+            if num_shares_afford == num_shares:
+                self.engine.buy_shares(self.portfolio, self.security, close, num_shares_afford)
+                if self.reporter:
+                    self.reporter.record(date, "buy", self.security, num_shares, close)
