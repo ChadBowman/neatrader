@@ -19,7 +19,8 @@ TSLA = Security('TSLA')
 
 def find_normalized_directory_path():
     path = None
-    with resources.path("resources.normalized", "TSLA") as fp:
+
+    with resources.path("resources.data", "TSLA") as fp:
         path = Path(fp)
     return path
 
@@ -39,7 +40,7 @@ def eval_genomes(genomes, config):
 
     for genome_id, genome in genomes:
         net = neat.nn.FeedForwardNetwork.create(genome, config)
-        portfolio = Portfolio(cash=0, securities={TSLA: 100})
+        portfolio = Portfolio(cash=0.0, securities={TSLA: 100})
         training_sim = Simulator(TSLA, portfolio, path, training)
 
         genome.fitness = training_sim.simulate(net, t_start, t_end)
@@ -80,7 +81,7 @@ def run(config_file, generations_per_iteration, iterations=math.inf):
             # add a stdout reporter to show progress in terminal
             pop.add_reporter(neat.StdOutReporter(True))
             pop.add_reporter(stats)
-            pop.add_reporter(neat.Checkpointer(1))
+            pop.add_reporter(neat.Checkpointer(generations_per_iteration))
 
             start = perf_counter_ns()
             winner = pop.run(eval_genomes, generations_per_iteration)
@@ -97,25 +98,31 @@ def run(config_file, generations_per_iteration, iterations=math.inf):
             vis.plot_species(stats, view=view)
 
             # simulate the winning network one time for a trades plot
-            portfolio = Portfolio(cash=0, securities={TSLA: 100})
-            simulator = Simulator(TSLA, portfolio, path, training)
-            daterange = training_daterange_factory.random_date_range(90)
+            portfolio = Portfolio(cash=0.0, securities={TSLA: 100})
             reporter = TradeReporter()
+            simulator = Simulator(TSLA, portfolio, path, training, reporter)
+            daterange = training_daterange_factory.random_date_range(90)
             vis.plot_trades(win_net, simulator, daterange, training, path, reporter, view=view)
+            print(f"\nWinner simulation:\nfitness: {reporter.fitness:.2f}")
+            print(f"trades:")
+            for trade in reporter.row_list:
+                print(trade)
+            print(f"\nending portfolio:\n{portfolio}")
 
             # plot the network
             node_names = {
-                -1: 'cash', -2: 'shares',  -3: 'close', -4: 'macd', -5: 'macd_signal',
-                -6: 'macd_diff', -7: 'bb_bbm', -8: 'bb_bbh', -9: 'bb_bbl', -10: 'rsi',
-                0: 'Buy', 1: 'Sell', 2: 'Hold', 3: 'Delta', 4: 'Theta'
+                -1: 'cash', -2: 'shares', -3: 'held option value',
+                -4: 'close', -5: 'macd', -6: 'macd_signal', -7: 'macd_diff',
+                -8: 'bb_bbm', -9: 'bb_bbh', -10: 'bb_bbl', -11: 'rsi',
+                0: 'close', 1: 'open', 2: 'hold', 3: 'delta', 4: 'theta'
             }
-            vis.draw_net(config, winner, view=view, node_names=node_names)
+            vis.draw_net(config, winner, view=view, node_names=node_names, filename="neural_net.svg")
 
             days_simulated += len(pop.population) * simulation_days * generations_per_iteration * 2
             duration_ns += end - start
             duration_min = duration_ns / 1000 / 1000 / 1000 / 60
             sim_years = days_simulated / 365
-            print(f"Simulated {days_simulated} days in {duration_min:.2f} minutes",
+            print(f"\nSimulated {days_simulated} days in {duration_min:.2f} minutes",
                   f"({sim_years / duration_min:.2f} sim years per minute)")
             i += 1
     finally:
