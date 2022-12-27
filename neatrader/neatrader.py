@@ -14,7 +14,7 @@ from neatrader.utils import from_small_date
 from pathlib import Path
 from time import perf_counter_ns
 
-TSLA = Security('TSLA')
+TSLA = Security("TSLA")
 
 
 def find_normalized_directory_path():
@@ -53,6 +53,13 @@ def find_checkpoints():
         key=lambda name: int(re.search(r"(\d+)", name).group(1)),
         reverse=True
     )
+
+
+def cleanup_checkpoints():
+    checkpoints = find_checkpoints()
+    # keep the most recent one
+    for checkpoint in checkpoints[1:]:
+        os.remove(checkpoint)
 
 
 def run(config_file, generations_per_iteration, iterations=math.inf):
@@ -114,9 +121,9 @@ def run(config_file, generations_per_iteration, iterations=math.inf):
                 -1: 'cash', -2: 'shares', -3: 'held option value',
                 -4: 'close', -5: 'macd', -6: 'macd_signal', -7: 'macd_diff',
                 -8: 'bb_bbm', -9: 'bb_bbh', -10: 'bb_bbl', -11: 'rsi',
-                0: 'close', 1: 'open', 2: 'hold', 3: 'delta', 4: 'theta'
+                0: 'close', 1: 'open', 2: 'hold', 3: 'strike', 4: 'expiration'
             }
-            vis.draw_net(config, winner, view=view, node_names=node_names, filename="neural_net.svg")
+            vis.draw_net(config, winner, view=view, node_names=node_names, filename="neural_net")
 
             days_simulated += len(pop.population) * simulation_days * generations_per_iteration * 2
             duration_ns += end - start
@@ -125,8 +132,6 @@ def run(config_file, generations_per_iteration, iterations=math.inf):
             print(f"\nSimulated {days_simulated} days in {duration_min:.2f} minutes",
                   f"({sim_years / duration_min:.2f} sim years per minute)")
             i += 1
+            cleanup_checkpoints()
     finally:
-        checkpoints = find_checkpoints()
-        # keep the most recent one
-        for checkpoint in checkpoints[1:]:
-            os.remove(checkpoint)
+        cleanup_checkpoints()

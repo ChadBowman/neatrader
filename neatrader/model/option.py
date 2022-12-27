@@ -5,7 +5,6 @@ from functools import lru_cache
 from itertools import chain
 from neatrader.utils import flatten_dict, add_value, small_date
 from pandas import Timestamp
-from datetime import datetime
 
 log = logging.getLogger(__name__)
 
@@ -39,6 +38,7 @@ class Option:
                 self.strike == other.strike,
                 self.expiration == other.expiration
             ))
+        return False
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -115,28 +115,36 @@ class OptionChain:
             and having to iterate on entire result.
         """
         direction = "call"  # 'put' if delta < 0 else 'call' TODO support for puts
-        exp = None
-        best_theta_error = math.inf
-        agg_thetas = self._expirations_by_price_weighted_theta(direction, close)
-        # agg_thetas should already be sorted and we could use binary search
+        expirations = self._expirations_by_price_weighted_theta(direction, close)
+        expiration = self._find_closest_expiration(theta, expirations)
+        contracts = self.chain[direction][expiration]
+        return self._find_closest_delta(delta, contracts.values())
+
+    def _find_closest_expiration(self, theta, expirations):
+        # price_weighted_dict should already be sorted and we could use binary search
         # but this wont be more than about 20 elements
-        for expiration, agg_theta in agg_thetas.items():
-            theta_error = abs(agg_theta - theta) ** 2
-            if theta_error < best_theta_error:
-                exp = expiration
-                best_theta_error = theta_error
+        closest_expiration = None
+        best_error = math.inf
+        for expiration, mean_theta in expirations.items():
+            error = abs(mean_theta - theta) ** 2
+            if error < best_error:
+                closest_expiration = expiration
+                best_error = error
 
-        if exp is None:
-            raise Exception(f"No expiration could be chosen for option search, ",
-                            "theta: {theta}, agg_thetas: {agg_thetas}")
+        if closest_expiration is None:
+            raise Exception("No expiration could be found for the given ",
+                            f"theta: {theta}, expirations: {expirations}")
+        return closest_expiration
 
-        contracts = self.chain[direction][exp]
+    def _find_closest_delta(self, delta, contracts):
+        # filter out nan deltas and 0 prices
         contracts = filter(
             lambda contract: not math.isnan(contract.delta) and contract.price > 0,
-            contracts.values()
+            contracts
         )
         contracts = sorted(contracts, key=lambda contract: contract.delta, reverse=True)
 
+        # use binary search to find the closest contract
         i, j = 0, len(contracts) - 1
         while i <= j:
             mid = i + (j-i) // 2
