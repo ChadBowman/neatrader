@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def flatten_dict(d):
@@ -32,3 +32,11 @@ def days_between(start, end):
     Example: will return 31 when start=2021-01-01 and end=20201-02-01
     """
     return divmod((end-start).total_seconds(), 86400)[0]
+
+
+def daterange(start_date, end_date):
+    """
+    Generates a date for each day starting from start_date and going until end_date (exclusive)
+    """
+    for n in range(int((end_date - start_date).days)):
+        yield start_date + timedelta(n)

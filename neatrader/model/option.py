@@ -160,7 +160,7 @@ class OptionChain:
     def get_price(self, contract):
         option = self.get_option(contract.direction, contract.expiration, contract.strike)
         if option is None:
-            log.warn(f"could not locate {contract} to provide a price")
+            log.error(f"could not locate {contract} to provide a price")
         return option.price if option else 0
 
     def calls(self):
@@ -192,13 +192,20 @@ class OptionChain:
         """ calculates the price-weighted implied volatility
             of all out of the money contracts with the same expiration.
         """
-        price_total = 0
-        iv = 0
+        price_total = 0.0
+        iv = 0.0
         contracts = chain.from_iterable(self.otm(expiration).values())
         for contract in contracts:
             iv += contract.iv * contract.price
             price_total += contract.price
         return iv / price_total
+
+    def iv_avg(self, expiration):
+        iv = 0.0
+        contracts = self.otm(expiration).values()
+        for contract in contracts:
+            iv += contract.iv
+        return iv / len(contracts)
 
     def to_df(self):
         contracts = {}
@@ -235,4 +242,13 @@ class OptionChain:
                     price_total += contract.price
             if price_total != 0:
                 result[expiration] = weighted_theta_agg / price_total
+
+        # remove theta values that are small due to imminent expiry
+        # these contracts with early expiration make this search non-deterministic
+        # with these values removed, we get a nice logarithmic relationship between expiration and theta
+        sorted_keys = sorted(result.keys())
+        for first_key, second_key in zip(sorted_keys, sorted_keys[1:]):
+            if result[first_key] > result[second_key]:
+                del result[first_key]
+
         return result

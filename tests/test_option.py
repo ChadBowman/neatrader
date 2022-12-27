@@ -135,3 +135,13 @@ class TestOptionChain(unittest.TestCase):
         contract = chain.search(634.23, delta=0.9563067834347971, theta=-1.0393999000404601)
 
         self.assertEqual(Option(Option.CALL, TSLA, 300, datetime(2020, 3, 27)), contract)
+
+    def test_filter_non_distinct_agg_theta(self):
+        path = Path('tests/test_data/TSLA/chains/200911.csv')
+        chain = CsvImporter().parse_chain(datetime(2020, 9, 11), TSLA, path)
+
+        agg_thetas = chain._expirations_by_price_weighted_theta("call", 372.72)
+        keys = sorted(agg_thetas.keys())
+
+        for first, second in zip(keys, keys[1:]):
+            self.assertTrue(agg_thetas[first] < agg_thetas[second])
