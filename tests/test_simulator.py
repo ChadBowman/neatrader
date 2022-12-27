@@ -56,16 +56,16 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(0, portfolio.cash)
 
     def test_open_short_call(self):
-        path = Path('tests/test_data/normalized/TSLA')
+        path = Path('tests/test_data/TSLA')
         training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
 
         sim = Simulator(TSLA, portfolio, path, training)
         sim._sell(
-            datetime(2020, 7, 20),
-            0.293070701634208,   # normalized close for 7/20
-            0.4617712204180135,  # should target the 2000 strike
-            0.3087888191319731   # should target 8/21 expiration
+            date=datetime(2020, 7, 20),
+            close=1643.00,  # 2020-7-20 close
+            delta=0.345,    # should target the 2000 strike
+            theta=-3.3      # should target a 8/21 expiration
         )
 
         call = Option(Option.CALL, TSLA, 2000, datetime(2020, 8, 21))
@@ -100,17 +100,15 @@ class TestSimulator(unittest.TestCase):
         self.assertAlmostEqual(0, fitness, places=3)
 
     def test_sell_and_get_assigned(self):
-        path = Path('tests/test_data/normalized/TSLA')
+        path = Path('tests/test_data/TSLA')
         training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
         sim = Simulator(TSLA, portfolio, path, training)
         net = SellOnceNet()
 
-        # close on 8/21 was 2049.98
-        # direction,expiration,strike,price,iv,delta,theta,vega
-        # call,200821,2000.0,108.75,0.4965503408681624,0.46177122041801355,0.30752325473559794,0.5241433005010039
-        net.theta = 0.3087888191319731  # target 8/21 expiration
-        net.delta = 0.4617712204180135  # target 2000 strike
+        # close on 8/21 was 2049.98, target ITM
+        net.theta = -3.2   # target 8/21 expiration
+        net.delta = 0.345  # target 2000 strike
 
         fitness = sim.simulate(net, datetime(2020, 7, 19), datetime(2020, 8, 22))
 
@@ -122,17 +120,15 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(10875 + 200000, portfolio.cash)
 
     def test_sell_and_expire(self):
-        path = Path('tests/test_data/normalized/TSLA')
+        path = Path('tests/test_data/TSLA')
         training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
         sim = Simulator(TSLA, portfolio, path, training)
         net = SellOnceNet()
 
-        # close on 8/21 was 2049.98
-        # direction,expiration,strike,price,iv,delta,theta,vega
-        # call,200821,2050.0,100.0,0.49691698172618826,0.4607403125936822,0.3105944110992971,0.5219995298370175
-        net.theta = 0.3087888191319731  # target 8/21 expiration
-        net.delta = 0.4607403125936822  # target 2050 strike
+        # close on 8/21 was 2049.98, target OTM
+        net.theta = -3.2  # target 8/21 expiration
+        net.delta = 0.32  # target 2050 strike
 
         fitness = sim.simulate(net, datetime(2020, 7, 19), datetime(2020, 8, 22))
 

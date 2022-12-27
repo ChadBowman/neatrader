@@ -5,6 +5,7 @@ from functools import lru_cache
 from itertools import chain
 from neatrader.utils import flatten_dict, add_value, small_date
 from pandas import Timestamp
+from datetime import datetime
 
 log = logging.getLogger(__name__)
 
@@ -225,7 +226,7 @@ class OptionChain:
             weighted_theta_agg = 0
             price_total = 0
             for strike, contract in strike_list.items():
-                if not contract.itm(close) and not math.isnan(contract.theta):
+                if not contract.itm(close) and not math.isnan(contract.theta) and contract.price > 0:
                     weighted_theta_agg += contract.price * contract.theta
                     price_total += contract.price
             if price_total != 0:

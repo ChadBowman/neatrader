@@ -2,7 +2,6 @@ import logging
 import numpy as np
 import pandas as pd
 from datetime import timedelta
-from neatrader.math import un_min_max, min_max
 from neatrader.preprocess import CsvImporter
 from neatrader.trading import TradingEngine, StockSplitHandler
 from neatrader.utils import small_date
@@ -19,7 +18,6 @@ class Simulator:
         self.path = path
         self.training = training
         self.reporter = reporter
-        self.scales = pd.read_csv(path / 'scales.csv', index_col=0)
         self.engine = TradingEngine([portfolio], reporter)
         self.split_handler = StockSplitHandler(path / 'splits.csv', security)
         self.importer = CsvImporter()
@@ -35,16 +33,16 @@ class Simulator:
         close = None
         for row in self._days_in_range(start, end):
             params = self._map_row(row)
-            date = params[0]
-            close = params[1]
-            params = (
-                self._normalize(self.portfolio.cash),
-                self._normalize(self.portfolio.stocks()[self.security]),
-                *params[1::]  # shave off date
-            )
+            date, close, macd, macd_signal, macd_diff, bb_bbm, bb_bbh, bb_bbl, rsi = params
             try:
                 # process assignments, expirations
-                self.engine.eval({self.security: self._denormalize(close)}, date)
+                self.engine.eval({self.security: close}, date)
+
+                cash = self.portfolio.cash  # self._normalize(self.portfolio.cash)
+                shares = self.portfolio.available_shares().get(self.security, 0) / 100.0
+                held_option_value = self._contract_value(date) * 100
+
+                params = (cash, shares, held_option_value, *params[1:])
 
                 if not np.isnan(params).any():
                     # Check for stock split and adjust portfolio accordingly
@@ -82,18 +80,19 @@ class Simulator:
                 date -= timedelta(days=1)
 
     def _calculate_fitness(self, close, end):
-        cash = 0
+        cash = self.portfolio.cash
+        denorm_close = close  # self._denormalize(close)
         for contract, amt in self.portfolio.contracts().items():
-            if amt != 0:
-                chain = self._most_recent_chain(end)
-                # option prices are not normalized
-                cash += chain.get_price(contract) * amt * 100
-        denorm_close = self._denormalize(close)
+            chain = self._most_recent_chain(end)
+            # option prices are not normalized
+            cash += chain.get_price(contract) * amt * 100
         for stock, amt in self.portfolio.stocks().items():
             cash += amt * denorm_close
-        cash += self.portfolio.cash
         # compare against a buy-and-hold strategy
-        return cash - (100 * denorm_close)
+        fitness = cash - (100 * denorm_close)
+        if self.reporter:
+            self.reporter.fitness = fitness
+        return fitness
 
     def _days_in_range(self, start, end):
         mask = (self.training['date'] > start) & (self.training['date'] <= end)
@@ -131,7 +130,7 @@ class Simulator:
         if not self.portfolio.contracts():
             chain = self._most_recent_chain(date)
             # sell a new contract
-            contract = chain.search(self._denormalize(close), delta=delta, theta=theta)
+            contract = chain.search(close, delta=delta, theta=theta)
             try:
                 self.engine.sell_contract(self.portfolio, contract, contract.price)
                 if self.reporter:
@@ -139,12 +138,8 @@ class Simulator:
             except Exception as e:
                 log.warn(e)
 
-    def _denormalize(self, x):
-        mn = self.scales.loc['close', 'min']
-        mx = self.scales.loc['close', 'max']
-        return un_min_max(x, mn, mx)
-
-    def _normalize(self, x):
-        mn = self.scales.loc['close', 'min']
-        mx = self.scales.loc['close', 'max']
-        return min_max(x, mn, mx)
+    def _contract_value(self, date):
+        value = 0
+        for contract, _ in self.portfolio.contracts().items():
+            value += self._most_recent_chain(date).get_price(contract)
+        return value
