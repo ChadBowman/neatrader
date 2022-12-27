@@ -127,3 +127,11 @@ class TestOptionChain(unittest.TestCase):
         chain.add_option(call)
 
         self.assertEqual(420, chain.get_price(call))
+
+    def test_filter_nan_delta_and_0_price(self):
+        path = Path('tests/test_data/TSLA/chains/200311.csv')
+        chain = CsvImporter().parse_chain(datetime(2020, 3, 11), TSLA, path)
+
+        contract = chain.search(634.23, delta=0.9563067834347971, theta=-1.0393999000404601)
+
+        self.assertEqual(Option(Option.CALL, TSLA, 300, datetime(2020, 3, 27)), contract)

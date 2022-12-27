@@ -21,17 +21,16 @@ class TradingEngine:
                         if contract.itm(price):
                             if amt < 0:
                                 self.assign(portfolio, contract, amt)
-                                #self.buy_shares(portfolio, security, price)
                                 if self.reporter:
-                                    self.reporter.record(date, 'assign', contract)
+                                    self.reporter.record(date, 'assign', contract, 1)
                             elif amt > 0:
                                 self.exercise(portfolio, contract, amt)
                                 if self.reporter:
-                                    self.reporter.record(date, 'exercise', contract)
+                                    self.reporter.record(date, 'exercise', contract, 1)
                         else:
                             self.expire(portfolio, contract, amt)
                             if self.reporter:
-                                self.reporter.record(date, 'expire', contract)
+                                self.reporter.record(date, 'expire', contract, 1)
 
     def expire(self, portfolio, contract, amt):
         """expires OTM contract, returns collateral if contract is short"""

@@ -131,8 +131,12 @@ class OptionChain:
                             "theta: {theta}, agg_thetas: {agg_thetas}")
 
         contracts = self.chain[direction][exp]
-        # These should be nearly sorted already, but just in case
-        contracts = sorted(contracts.values(), key=lambda contract: contract.delta, reverse=True)
+        contracts = filter(
+            lambda contract: not math.isnan(contract.delta) and contract.price > 0,
+            contracts.values()
+        )
+        contracts = sorted(contracts, key=lambda contract: contract.delta, reverse=True)
+
         i, j = 0, len(contracts) - 1
         while i <= j:
             mid = i + (j-i) // 2
@@ -150,7 +154,7 @@ class OptionChain:
             else:
                 i = mid + 1
         raise Exception(f"Unable to find contract close to delta: {delta}, ",
-                        "contracts: {contracts}")
+                        f"contracts: {contracts}")
 
     @lru_cache(maxsize=None)
     def get_price(self, contract):
