@@ -1,6 +1,6 @@
 import unittest
-from neatrader.utils import flatten_dict, days_between, daterange
 from datetime import datetime
+from neatrader.utils import flatten_dict, days_between, daterange
 
 
 class TestUtils(unittest.TestCase):

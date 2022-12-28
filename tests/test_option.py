@@ -69,7 +69,6 @@ class TestOptionChain(unittest.TestCase):
 
     def test_otm(self):
         security = Security('TSLA')
-        security.add_quote(Quote(420, datetime.now()))
         o1 = Option('call', security, 500, datetime(2020, 4, 20))
         o2 = Option('put', security, 300, datetime(2020, 4, 20))
         o3 = Option('call', security, 100, datetime(2020, 4, 20))  # ITM
@@ -79,13 +78,12 @@ class TestOptionChain(unittest.TestCase):
         chain.add_option(o2)
         chain.add_option(o3)
 
-        calls, puts = chain.otm(datetime(2020, 4, 20)).values()
+        calls, puts = chain.otm(datetime(2020, 4, 20), 420).values()
         self.assertEqual(1, len(calls))
         self.assertEqual(1, len(puts))
 
     def test_iv(self):
         security = Security('TSLA')
-        security.add_quote(Quote(420, datetime.now()))
         o1 = Option('call', security, 700, datetime(2020, 4, 20))
         o3 = Option('call', security, 500, datetime(2020, 4, 20))
         o2 = Option('put', security, 400, datetime(2020, 4, 20))
@@ -102,7 +100,7 @@ class TestOptionChain(unittest.TestCase):
         chain.add_option(o3)
 
         expected = (5 * 2 + 2 * 4 + 0.5 * 10) / (2 + 4 + 10)
-        result = chain.iv(datetime(2020, 4, 20))
+        result = chain.iv(datetime(2020, 4, 20), 420)
         self.assertEqual(expected, result)
 
     def test_option_expired(self):

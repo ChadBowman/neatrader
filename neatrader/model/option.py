@@ -72,8 +72,8 @@ class OptionChain:
     def __init__(self, security, date):
         # keyed by date
         self.chain = {
-            'call': {},
-            'put': {}
+            "call": {},
+            "put": {}
         }
         self.security = security
         self.date = date
@@ -172,37 +172,36 @@ class OptionChain:
         return option.price if option else 0
 
     def calls(self):
-        return self.chain['call']
+        return self.chain["call"]
 
     def puts(self):
-        return self.chain['put']
+        return self.chain["put"]
 
-    def otm(self, expiration):
+    def otm(self, expiration, underlying_price):
         """ finds all out of the money option contracts
             for a particular expiration date.
         """
-        underlying = self.security.last_quote().close
         otm_calls = []
         for strike, contract in self.calls()[expiration].items():
-            if strike > underlying:
+            if strike > underlying_price:
                 otm_calls.append(contract)
         otm_puts = []
         for strike, contract in self.puts()[expiration].items():
-            if strike < underlying:
+            if strike < underlying_price:
                 otm_puts.append(contract)
         return {
-            'call': otm_calls,
-            'put': otm_puts
+            "call": otm_calls,
+            "put": otm_puts
         }
 
     @lru_cache(maxsize=None)
-    def iv(self, expiration):
+    def iv(self, expiration, underlying_price):
         """ calculates the price-weighted implied volatility
             of all out of the money contracts with the same expiration.
         """
         price_total = 0.0
         iv = 0.0
-        contracts = chain.from_iterable(self.otm(expiration).values())
+        contracts = chain.from_iterable(self.otm(expiration, underlying_price).values())
         for contract in contracts:
             iv += contract.iv * contract.price
             price_total += contract.price
