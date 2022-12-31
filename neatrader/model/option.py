@@ -1,10 +1,10 @@
 import logging
 import math
 import pandas as pd
+from datetime import timedelta
 from functools import lru_cache
 from itertools import chain
 from neatrader.utils import flatten_dict, add_value, small_date
-from pandas import Timestamp
 
 log = logging.getLogger(__name__)
 
@@ -18,9 +18,6 @@ class Option:
         self.direction = direction
         self.security = security
         self.strike = strike
-        # TODO probably not the best way to deal with this
-        if isinstance(expiration, Timestamp):
-            expiration = expiration.to_pydatetime()
         self.expiration = expiration
 
     def __str__(self):
@@ -182,11 +179,11 @@ class OptionChain:
             for a particular expiration date.
         """
         otm_calls = []
-        for strike, contract in self.calls()[expiration].items():
+        for strike, contract in self.calls().get(expiration, {}).items():
             if strike > underlying_price:
                 otm_calls.append(contract)
         otm_puts = []
-        for strike, contract in self.puts()[expiration].items():
+        for strike, contract in self.puts().get(expiration, {}).items():
             if strike < underlying_price:
                 otm_puts.append(contract)
         return {
@@ -203,28 +200,33 @@ class OptionChain:
         iv = 0.0
         contracts = chain.from_iterable(self.otm(expiration, underlying_price).values())
         for contract in contracts:
-            iv += contract.iv * contract.price
-            price_total += contract.price
-        return iv / price_total
+            if contract.iv > 0 and contract.price > 0:
+                iv += contract.iv * contract.price
+                price_total += contract.price
+        return iv / price_total if price_total > 0 else None
 
-    def iv_avg(self, expiration):
-        iv = 0.0
-        contracts = self.otm(expiration).values()
-        for contract in contracts:
-            iv += contract.iv
-        return iv / len(contracts)
+    def closest_expiration(self, days_future):
+        i = 0
+        while True:
+            forward = self.date + timedelta(days_future + i)
+            backward = self.date + timedelta(days_future - i)
+            if self.calls().get(forward):
+                return forward
+            if self.calls().get(backward):
+                return backward
+            i += 1
 
     def to_df(self):
         contracts = {}
         for contract in flatten_dict(self.chain):
-            add_value(contracts, 'direction', contract.direction)
-            add_value(contracts, 'expiration', small_date(contract.expiration))
-            add_value(contracts, 'strike', contract.strike)
-            add_value(contracts, 'price', contract.price)
-            add_value(contracts, 'iv', contract.iv)
-            add_value(contracts, 'delta', contract.delta)
-            add_value(contracts, 'theta', contract.theta)
-            add_value(contracts, 'vega', contract.vega)
+            add_value(contracts, "direction", contract.direction)
+            add_value(contracts, "expiration", small_date(contract.expiration))
+            add_value(contracts, "strike", contract.strike)
+            add_value(contracts, "price", contract.price)
+            add_value(contracts, "iv", contract.iv)
+            add_value(contracts, "delta", contract.delta)
+            add_value(contracts, "theta", contract.theta)
+            add_value(contracts, "vega", contract.vega)
         return pd.DataFrame(contracts)
 
     @lru_cache(maxsize=None)

@@ -32,7 +32,7 @@ class Simulator:
         close = None
         for row in self._days_in_range(start, end):
             params = self._map_row(row)
-            date, close, macd, macd_signal, macd_diff, bb_bbm, bb_bbh, bb_bbl, rsi = params
+            date, close, macd, macd_signal, macd_diff, bb_bbm, bb_bbh, bb_bbl, rsi, iv_10, iv_30 = params
             try:
                 # process assignments, expirations
                 self.engine.eval({self.security: close}, date)
@@ -41,7 +41,7 @@ class Simulator:
                 shares = self.portfolio.available_shares().get(self.security, 0) / 100.0
                 held_option_value = self._contract_value(date) * 100
 
-                params = (cash, shares, held_option_value, *params[1:])
+                params = (cash, shares, held_option_value, iv_10, iv_30, rsi)
 
                 if not np.isnan(params).any():
                     # Check for stock split and adjust portfolio accordingly
@@ -112,7 +112,9 @@ class Simulator:
         bb_bbh = row["bb_bbh"]
         bb_bbl = row["bb_bbl"]
         rsi = row["rsi"]
-        return (date, close, macd, macd_signal, macd_diff, bb_bbm, bb_bbh, bb_bbl, rsi)
+        iv_10 = row["iv_10"]
+        iv_30 = row["iv_30"]
+        return (date, close, macd, macd_signal, macd_diff, bb_bbm, bb_bbh, bb_bbl, rsi, iv_10, iv_30)
 
     def _buy(self, date):
         # only covered calls are supported right now so this means close the position

@@ -17,15 +17,14 @@ from time import perf_counter_ns
 TSLA = Security("TSLA")
 
 
-def find_normalized_directory_path():
+def find_data_path():
     path = None
-
     with resources.path("resources.data", "TSLA") as fp:
         path = Path(fp)
     return path
 
 
-path = find_normalized_directory_path()
+path = find_data_path()
 training = pd.read_csv(path / "training.csv", parse_dates=['date'], date_parser=from_small_date)
 validation = pd.read_csv(path / "cross_validation.csv", parse_dates=['date'], date_parser=from_small_date)
 training_daterange_factory = DateRangeFactory(training)
@@ -118,12 +117,15 @@ def run(config_file, generations_per_iteration, iterations=math.inf):
 
             # plot the network
             node_names = {
-                -1: 'cash', -2: 'shares', -3: 'held option value',
-                -4: 'close', -5: 'macd', -6: 'macd_signal', -7: 'macd_diff',
-                -8: 'bb_bbm', -9: 'bb_bbh', -10: 'bb_bbl', -11: 'rsi',
-                0: 'close', 1: 'open', 2: 'hold', 3: 'strike', 4: 'expiration'
+                -1: "cash", -2: "shares", -3: "held option value", -4: "10 day iv", -5: "30 day iv", -6: "RSI",
+                #-4: "close", -5: "macd", -6: "macd_signal", -7: "macd_diff",
+                #-8: "bb_bbm", -9: "bb_bbh", -10: "bb_bbl", -11: "rsi", -12: "30 day IV",
+                0: "open", 1: "close", 2: "hold", 3: "strike", 4: "expiration"
             }
-            vis.draw_net(config, winner, view=view, node_names=node_names, filename="neural_net")
+            vis.draw_net(
+                config, winner, view=view, node_names=node_names,
+                filename="neural_net", prune_unused=False, show_disabled=False
+            )
 
             days_simulated += len(pop.population) * simulation_days * generations_per_iteration * 2
             duration_ns += end - start

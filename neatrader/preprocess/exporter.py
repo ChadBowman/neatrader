@@ -8,18 +8,18 @@ class CsvExporter:
     def __init__(self, path=""):
         self.path = path
 
-    def to_csv(self, chain, quote):
+    def to_csv(self, chain, quote, iv):
         """ Appends chain to file if exists """
         security = chain.security
         dirs = os.path.join(self.path, security.symbol)
         Path(dirs).mkdir(parents=True, exist_ok=True)
 
-        self.append_close(security.symbol, quote)
+        self.append_close(security.symbol, quote, iv)
         self.write_chain(chain)
 
         return dirs
 
-    def append_close(self, symbol, quote):
+    def append_close(self, symbol, quote, iv):
         full_path = os.path.join(self.path, symbol, "close.csv")
         append = os.path.exists(full_path)
         mode = "a" if append else "w"
@@ -27,8 +27,8 @@ class CsvExporter:
         with open(full_path, mode, encoding="utf-8") as f:
             writer = csv.writer(f)
             if not append:
-                writer.writerow(["date", "close"])
-            writer.writerow([small_date(quote.datetime), quote.quote])
+                writer.writerow(["date", "close", *iv.keys()])
+            writer.writerow([small_date(quote.datetime), quote.quote, *iv.values()])
 
     def write_chain(self, chain):
         dirs = os.path.join(self.path, chain.security.symbol, "chains")

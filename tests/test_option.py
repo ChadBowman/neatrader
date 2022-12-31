@@ -37,8 +37,8 @@ class TestOptionChain(unittest.TestCase):
 
     def test__expirations_by_price_weighted_theta(self):
         importer = CsvImporter()
-        chain = next(importer.chains(Path('tests/test_data/TSLA')))
-        self.assertEqual('TSLA20200903', str(chain))
+        chain = next(importer.chains(Path("tests/test_data/TSLA")))
+        self.assertEqual("TSLA20200903", str(chain))
 
         expirations = chain._expirations_by_price_weighted_theta("call", 372.72)
 
@@ -48,8 +48,8 @@ class TestOptionChain(unittest.TestCase):
 
     def test_search(self):
         importer = CsvImporter()
-        chain = next(importer.chains(Path('tests/test_data/TSLA')))
-        self.assertEqual('TSLA20200903', str(chain))
+        chain = next(importer.chains(Path("tests/test_data/TSLA")))
+        self.assertEqual("TSLA20200903", str(chain))
 
         result = chain.search(372.72, theta=-1.2863, delta=0.4955)
         # direction,expiration,strike,price,iv,delta,theta,vega
@@ -59,8 +59,8 @@ class TestOptionChain(unittest.TestCase):
 
     def test_search_using_zeros(self):
         importer = CsvImporter()
-        chain = next(importer.chains(Path('tests/test_data/TSLA')))
-        self.assertEqual('TSLA20200903', str(chain))
+        chain = next(importer.chains(Path("tests/test_data/TSLA")))
+        self.assertEqual("TSLA20200903", str(chain))
 
         result = chain.search(372.72, theta=0, delta=0)
 
@@ -68,10 +68,10 @@ class TestOptionChain(unittest.TestCase):
         self.assertEqual(1000, result.strike)
 
     def test_otm(self):
-        security = Security('TSLA')
-        o1 = Option('call', security, 500, datetime(2020, 4, 20))
-        o2 = Option('put', security, 300, datetime(2020, 4, 20))
-        o3 = Option('call', security, 100, datetime(2020, 4, 20))  # ITM
+        security = Security("TSLA")
+        o1 = Option("call", security, 500, datetime(2020, 4, 20))
+        o2 = Option("put", security, 300, datetime(2020, 4, 20))
+        o3 = Option("call", security, 100, datetime(2020, 4, 20))  # ITM
 
         chain = OptionChain(security, datetime.now())
         chain.add_option(o1)
@@ -83,10 +83,10 @@ class TestOptionChain(unittest.TestCase):
         self.assertEqual(1, len(puts))
 
     def test_iv(self):
-        security = Security('TSLA')
-        o1 = Option('call', security, 700, datetime(2020, 4, 20))
-        o3 = Option('call', security, 500, datetime(2020, 4, 20))
-        o2 = Option('put', security, 400, datetime(2020, 4, 20))
+        security = Security("TSLA")
+        o1 = Option("call", security, 700, datetime(2020, 4, 20))
+        o3 = Option("call", security, 500, datetime(2020, 4, 20))
+        o2 = Option("put", security, 400, datetime(2020, 4, 20))
         o1.iv = 5
         o1.price = 2
         o2.iv = 2
@@ -104,13 +104,13 @@ class TestOptionChain(unittest.TestCase):
         self.assertEqual(expected, result)
 
     def test_option_expired(self):
-        security = Security('TSLA')
-        call = Option('call', security, 420, datetime(2020, 12, 4))
+        security = Security("TSLA")
+        call = Option("call", security, 420, datetime(2020, 12, 4))
         self.assertTrue(call.expired(datetime(2020, 12, 4)))
         self.assertTrue(call.expired(datetime(2020, 12, 5)))
 
     def test_option_itm(self):
-        security = Security('TSLA')
+        security = Security("TSLA")
         call = Option(Option.CALL, security, 420, datetime(2020, 12, 4))
         put = Option(Option.PUT, security, 420, datetime(2020, 12, 4))
         self.assertTrue(call.itm(500))
@@ -127,7 +127,7 @@ class TestOptionChain(unittest.TestCase):
         self.assertEqual(420, chain.get_price(call))
 
     def test_filter_nan_delta_and_0_price(self):
-        path = Path('tests/test_data/TSLA/chains/200311.csv')
+        path = Path("tests/test_data/TSLA/chains/200311.csv")
         chain = CsvImporter().parse_chain(datetime(2020, 3, 11), TSLA, path)
 
         contract = chain.search(634.23, delta=0.9563067834347971, theta=-1.0393999000404601)
@@ -135,7 +135,7 @@ class TestOptionChain(unittest.TestCase):
         self.assertEqual(Option(Option.CALL, TSLA, 300, datetime(2020, 3, 27)), contract)
 
     def test_filter_non_distinct_agg_theta(self):
-        path = Path('tests/test_data/TSLA/chains/200911.csv')
+        path = Path("tests/test_data/TSLA/chains/200911.csv")
         chain = CsvImporter().parse_chain(datetime(2020, 9, 11), TSLA, path)
 
         agg_thetas = chain._expirations_by_price_weighted_theta("call", 372.72)
@@ -143,3 +143,9 @@ class TestOptionChain(unittest.TestCase):
 
         for first, second in zip(keys, keys[1:]):
             self.assertTrue(agg_thetas[first] < agg_thetas[second])
+
+    def test_closest_expiration(self):
+        path = Path("tests/test_data/TSLA/chains/200911.csv")
+        chain = CsvImporter().parse_chain(datetime(2020, 9, 11), TSLA, path)
+
+        self.assertEqual(datetime(2020, 10, 9), chain.closest_expiration(30))

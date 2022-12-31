@@ -20,8 +20,8 @@ class TestCsvExporter(unittest.TestCase):
         tsla = utils.fetch_resource("test_data/etrade/2020-09-10/TSLA.json")
         chain2 = importer.from_json(tsla)
         try:
-            base = exporter.to_csv(chain2, quotes.pop(TSLA))
-            base = exporter.to_csv(chain, quotes.pop(TSLA))
+            base = exporter.to_csv(chain2, quotes.pop(TSLA), {})
+            base = exporter.to_csv(chain, quotes.pop(TSLA), {})
 
             df = pd.read_csv(join(base, "close.csv"))
             self.assertEqual((2, 2), df.shape)
@@ -34,7 +34,7 @@ class TestCsvExporter(unittest.TestCase):
         tsla = utils.fetch_resource("test_data/etrade/2020-09-09/TSLA.json")
         chain = importer.from_json(tsla)
         try:
-            base = exporter.to_csv(chain, importer.quote_service.pop(TSLA))
+            base = exporter.to_csv(chain, importer.quote_service.pop(TSLA), {})
 
             df = pd.read_csv(join(base, "chains", "200909.csv"))
             self.assertEqual(20.0, df["strike"][0])

@@ -16,7 +16,7 @@ class DateRangeFactory:
         to be a trading day or have a closing price.
         """
         i = round(end_target / self.training_duration * len(self.training)-1)
-        end = self.training.loc[i, 'date']
+        end = self.training.loc[i, "date"].to_pydatetime()
         start = end - timedelta(days=duration)
         return (start, end)
 
@@ -25,6 +25,6 @@ class DateRangeFactory:
         return self.date_range_by_end_target(duration, end_date_target)
 
     def _training_duration(self):
-        mn = min(self.training['date'])
-        mx = max(self.training['date'])
+        mn = min(self.training["date"])
+        mx = max(self.training["date"])
         return days_between(mn, mx)

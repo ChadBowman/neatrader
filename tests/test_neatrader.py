@@ -1,8 +1,8 @@
-import unittest
 import os
-from os.path import exists, join
-from neatrader import neatrader
 import shutil
+import unittest
+from neatrader import neatrader
+from os.path import exists, join
 
 local_dir = os.path.dirname(__file__)
 
@@ -27,7 +27,7 @@ class TestNeatrader(unittest.TestCase):
             self.assertTrue(exists(join(cwd, "neat-checkpoint-9")))
             self.assertTrue(exists(join(cwd, "neat-checkpoint-10")))
 
-            config_path = join(local_dir, 'test_configuration.ini')
+            config_path = join(local_dir, "test_configuration.ini")
             neatrader.eval_genomes = fake_eval_genomes
             neatrader.run(config_path, generations_per_iteration=1, iterations=1)
 

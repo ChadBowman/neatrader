@@ -1,28 +1,28 @@
-import unittest
 import pandas as pd
-from utils import TSLA, BuyAndHoldNet, AlwaysSellNet, SellOnceNet
+import unittest
+from datetime import datetime
 from neatrader.model import Portfolio, Option
 from neatrader.trading import Simulator
 from neatrader.utils import from_small_date
 from pathlib import Path
-from datetime import datetime
+from utils import TSLA, BuyAndHoldNet, AlwaysSellNet, SellOnceNet
 
 
 class TestSimulator(unittest.TestCase):
     def test_simulate_range(self):
-        path = Path('tests/test_data/normalized/TSLA')
-        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        path = Path("tests/test_data/normalized/TSLA")
+        training = pd.read_csv(path / "training.csv", parse_dates=["date"], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
 
         sim = Simulator(TSLA, portfolio, path, training)
 
-        gen = sim._days_in_range('2020-6-1', '2020-7-31')
-        self.assertEqual(pd.Timestamp('2020-6-2'), next(gen)['date'])
-        self.assertEqual(36, len(list(gen)))
+        gen = sim._days_in_range("2020-6-1", "2020-7-31")
+        self.assertEqual(pd.Timestamp("2020-6-2"), next(gen)["date"])
+        self.assertEqual(34, len(list(gen)))
 
     def test_days_in_range(self):
-        path = Path('tests/test_data/normalized/TSLA')
-        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        path = Path("tests/test_data/normalized/TSLA")
+        training = pd.read_csv(path / "training.csv", parse_dates=["date"], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
 
         sim = Simulator(TSLA, portfolio, path, training)
@@ -32,8 +32,8 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(2, len(list(gen)))
 
     def test_close_no_op(self):
-        path = Path('tests/test_data/normalized/TSLA')
-        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        path = Path("tests/test_data/normalized/TSLA")
+        training = pd.read_csv(path / "training.csv", parse_dates=["date"], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
 
         sim = Simulator(TSLA, portfolio, path, training)
@@ -44,8 +44,8 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(100, portfolio.securities[TSLA])
 
     def test_close_short_call(self):
-        path = Path('tests/test_data/normalized/TSLA')
-        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        path = Path("tests/test_data/normalized/TSLA")
+        training = pd.read_csv(path / "training.csv", parse_dates=["date"], date_parser=from_small_date)
         call = Option(Option.CALL, TSLA, 420, datetime(2020, 7, 17))
         portfolio = Portfolio(cash=133535, securities={call: -1})
 
@@ -56,8 +56,8 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(0, portfolio.cash)
 
     def test_open_short_call(self):
-        path = Path('tests/test_data/TSLA')
-        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        path = Path("tests/test_data/TSLA")
+        training = pd.read_csv(path / "training.csv", parse_dates=["date"], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
 
         sim = Simulator(TSLA, portfolio, path, training)
@@ -75,8 +75,8 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(10875, portfolio.cash)
 
     def test_calculate_fitness(self):
-        path = Path('tests/test_data/normalized/TSLA')
-        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        path = Path("tests/test_data/normalized/TSLA")
+        training = pd.read_csv(path / "training.csv", parse_dates=["date"], date_parser=from_small_date)
         call = Option(Option.CALL, TSLA, 420, datetime(2020, 9, 11))
         portfolio = Portfolio(cash=10, securities={TSLA: 100, call: -1})
 
@@ -87,8 +87,8 @@ class TestSimulator(unittest.TestCase):
         self.assertAlmostEqual(expected, actual, places=2)
 
     def test_hold_only(self):
-        path = Path('tests/test_data/normalized/TSLA')
-        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        path = Path("tests/test_data/normalized/TSLA")
+        training = pd.read_csv(path / "training.csv", parse_dates=["date"], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
         sim = Simulator(TSLA, portfolio, path, training)
         net = BuyAndHoldNet()
@@ -100,8 +100,8 @@ class TestSimulator(unittest.TestCase):
         self.assertAlmostEqual(0, fitness, places=3)
 
     def test_sell_and_get_assigned(self):
-        path = Path('tests/test_data/TSLA')
-        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        path = Path("tests/test_data/TSLA")
+        training = pd.read_csv(path / "training.csv", parse_dates=["date"], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
         sim = Simulator(TSLA, portfolio, path, training)
         net = SellOnceNet()
@@ -120,8 +120,8 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(65_211 + 100_000, portfolio.cash)
 
     def test_sell_and_expire(self):
-        path = Path('tests/test_data/TSLA')
-        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        path = Path("tests/test_data/TSLA")
+        training = pd.read_csv(path / "training.csv", parse_dates=["date"], date_parser=from_small_date)
         portfolio = Portfolio(cash=0, securities={TSLA: 100})
         sim = Simulator(TSLA, portfolio, path, training)
         net = SellOnceNet()
@@ -140,8 +140,8 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(10000, portfolio.cash)
 
     def test_expire_without_close_on_expiration(self):
-        path = Path('tests/test_data/normalized/TSLA')
-        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        path = Path("tests/test_data/normalized/TSLA")
+        training = pd.read_csv(path / "training.csv", parse_dates=["date"], date_parser=from_small_date)
         call = Option(Option.CALL, TSLA, 2800, datetime(2020, 7, 24))
         portfolio = Portfolio(cash=0, securities={TSLA: 100, call: -1})
         portfolio.collateral = {TSLA: 100}
@@ -153,8 +153,8 @@ class TestSimulator(unittest.TestCase):
         self.assertEqual(0, portfolio.securities.get(call, 0))
 
     def test_buy_shares_when_all_cash(self):
-        path = Path('tests/test_data/TSLA')
-        training = pd.read_csv(path / 'training.csv', parse_dates=['date'], date_parser=from_small_date)
+        path = Path("tests/test_data/TSLA")
+        training = pd.read_csv(path / "training.csv", parse_dates=["date"], date_parser=from_small_date)
         portfolio = Portfolio(cash=1_000_000, securities={})
 
         sim = Simulator(TSLA, portfolio, path, training)

@@ -92,7 +92,7 @@ class CsvImporter:
         chain = OptionChain(security, date)
         df = pd.read_csv(path, parse_dates=["expiration"], date_parser=from_small_date)
         for index, contract in df.iterrows():
-            expiration = contract["expiration"]
+            expiration = contract["expiration"].to_pydatetime()
             direction = contract["direction"]
             strike = contract["strike"]
             option = Option(direction, security, strike, expiration)
@@ -100,5 +100,6 @@ class CsvImporter:
             option.delta = contract["delta"]
             option.theta = contract["theta"]
             option.vega = contract["vega"]
+            option.iv = contract["iv"]
             chain.add_option(option)
         return chain
